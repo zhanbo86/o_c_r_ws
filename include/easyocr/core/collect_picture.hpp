@@ -7,6 +7,7 @@
 #include <iostream>
 #include "pre_process.hpp"
 #include "easyocr/util/util.h"
+#include "easyocr/config.h"
 
 
 class CollectPic

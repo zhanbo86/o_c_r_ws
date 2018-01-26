@@ -3,6 +3,8 @@
 
 #define CV_VERSION_THREE_TWO
 
+//#define DEBUG
+
 namespace easyocr {
 
   enum Color { BLUE, YELLOW, WHITE, UNKNOWN };
@@ -34,6 +36,7 @@ typedef enum {
   kForward = 1, // correspond to "has plate"
   kInverse = 0  // correspond to "no plate"
 } SvmLabel;
+
 
 static const int   kPlateResizeWidth = 136;
 static const int   kPlateResizeHeight = 36;

@@ -21,17 +21,28 @@
 #include <leptonica/allheaders.h>
 #include <fstream>
 #include <bitset>
+#include <time.h>
+#include "easyocr/config.h"
 
 
 using namespace std;
 using namespace cv;
 
+#define BIGCHAR 1
+#define MEDCHAR 2
+#define SMALLCHAR 3
+
+#define WHITE 1
+#define BLACK 2
+
+
 class TextDetector{
 public:
     TextDetector();
 //    TextDetector(TextDetecorParams &params, std::string imgDir = "");
-    void segmentTextSob(cv::Mat &spineImage, vector<Mat> &single_char_vec, int im_num, bool save);
-    void segmentTextSrc(cv::Mat &spineImage, vector<Mat> &single_char_vec, int im_num, bool save);
+    void segmentSobMor(cv::Mat &spineImage, vector<Mat> &single_char_vec, int im_num, bool save);
+    void segmentSrcMor(cv::Mat &spineImage, vector<Mat> &single_char_vec, int im_num, bool save);
+    void segmentSrcSlide(cv::Mat &spineImage, vector<Mat> &single_char_vec, int im_num, bool save);
 protected:
     //pre-processing
     cv::Mat preProcess(cv::Mat &image);
@@ -42,6 +53,10 @@ protected:
     void imgQuantize(cv::Mat &src, cv::Mat &dst, double level);
     bool verifyCharSizes(Mat r);
     int sobelOper(const Mat &in, Mat &out, int blurSize);
+    Mat preprocessChar(Mat in);
+    void setMorParameters(int char_size);
+    void setThreParameters(int char_color);
+    int slidingWnd(Mat& src, vector<Mat>& wnd, Size wndSize, double x_percent, double y_percent);
 private:
 //    string imageDirectory;
     double NaN = nan("not a number");
@@ -53,6 +68,9 @@ private:
     static const int SOBEL_Y_WEIGHT = 1;
     static const int DEFAULT_MORPH_SIZE_WIDTH = 17;  // 17
     static const int DEFAULT_MORPH_SIZE_HEIGHT = 3;  // 3
+    static const int CHAR_SIZE = 20;
+    Size src_open_val,src_dilate_val,src_erode_val;
+    bool inv_bin = false;
 };  /*  class TextDetector */
 
 

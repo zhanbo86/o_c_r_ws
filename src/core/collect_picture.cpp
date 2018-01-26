@@ -152,54 +152,9 @@ int CollectPic::imgCollect()
         TextDetector detector;
         vector<Mat> single_char_vec;
         single_char_vec.clear();
-        detector.segmentTextSrc(ocr_piece, single_char_vec,im_num,true);
+        detector.segmentSrcSlide(ocr_piece, single_char_vec,im_num,true);
+//        detector.segmentSrcMor(ocr_piece, single_char_vec,im_num,true);
 //        detector.segmentTextSob(ocr_piece, single_char_vec,im_num,true);
-
-//        ////segment character
-//        CvRect rect;
-//        vector<CvRect> rect_vec;
-//        rect_vec.clear();
-//        vector <vector<Point>>contours;
-//        findContours(proceed_ocr,contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_NONE);
-//        Mat sepertate_im(proceed_ocr.size(),proceed_ocr.depth(),Scalar(255));
-//        drawContours(sepertate_im,contours,-1,Scalar(0),2);
-//        while(1)
-//        {
-//          imshow("sepertate_im",sepertate_im);
-//          if(char(cvWaitKey(15))==27)break;
-//        }
-
-//        for(int i=0;i<(int)contours.size();i++){
-//            double g_dConArea = contourArea(contours.at(i));
-////            cout<<"coutour area = "<<g_dConArea<<endl;
-//            if(g_dConArea>10)
-//            {
-//                rect = boundingRect(contours.at(i));
-//                rect_vec.push_back(rect);
-//            }
-//        }
-
-//        ////save single char image after segment
-//        for(int char_num=0;char_num<rect_vec.size();char_num++)
-//        {
-////            std::string file_save_jpg;
-////            std::stringstream ss_save;
-////            ss_save<<im_num<<"_"<<char_num<<".jpg";
-////            ss_save>>file_save_jpg;
-
-//            const char* single_char_folder_ = "../../../src/easyocr/char_img";
-//            std::stringstream ss(std::stringstream::in | std::stringstream::out);
-//            ss << single_char_folder_ << "/" << im_num << "_" << char_num << ".jpg";
-////            imwrite(ss.str(), simg);
-
-//            Mat single_char=proceed_ocr(rect_vec.at(char_num));
-//            imwrite(ss.str(),single_char);
-//            while(1)
-//            {
-//              imshow( "single_char", single_char );
-//              if(char(cvWaitKey(15))==27)break;
-//            }
-//        }
     }
 
     return 0;

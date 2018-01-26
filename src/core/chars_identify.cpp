@@ -176,7 +176,7 @@ int CharsIdentify::classify(cv::Mat f, float& maxVal, bool isAlphabet){
       result = 0;
       for (int j = 0; j < kCharactersNumber; j++) {
         float val = output.at<float>(j);
-        // std::cout << "j:" << j << "val:" << val << std::endl;
+//         std::cout << "j:" << j << " ,  val:" << val << std::endl;
         if (val > maxVal) {
           maxVal = val;
           result = j;
@@ -195,7 +195,7 @@ int CharsIdentify::classify(cv::Mat f, float& maxVal, bool isAlphabet){
 //        }
 //      }
 //    }
-  //std::cout << "maxVal:" << maxVal << std::endl;
+  std::cout << "maxVal:" << maxVal << std::endl;
   return result;
 }
 
@@ -231,7 +231,14 @@ std::pair<std::string, std::string> CharsIdentify::identify(cv::Mat input, bool 
   float maxVal = -2;
   auto index = static_cast<int>(classify(feature, maxVal,isAlphabet));
   if (index < kCharactersNumber) {
-    return std::make_pair(kChars[index], kChars[index]);
+      if(maxVal>0.95)
+      {
+          return std::make_pair(kChars[index], kChars[index]);
+      }
+      else
+      {
+          return std::make_pair("NAN", "NAN");
+      }
   }
   else {
     const char* key = kChars[index];

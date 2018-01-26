@@ -78,7 +78,7 @@ int CharRecog::charRecognise()
     capture_1 = false;
 
     //// Load image and resize to 1280*1024,source img is 2448*2048
-    Mat im = imread("/home/zb/BoZhan/ocr_ws/0104PCB/1.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_ANYCOLOR);
+    Mat im = imread("/home/zb/BoZhan/ocr_ws/0104PCB/9.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_ANYCOLOR);
     Size low_res = cv::Size((int)(im.size().width/2),(int)(im.size().height/2));
     Mat img_100(low_res,im.depth(),1);
     if (im.empty())
@@ -105,7 +105,6 @@ int CharRecog::charRecognise()
       cvWaitKey(10);
       //          if(char(cvWaitKey(15))==27)break;
     }
-    clock_t a=clock();
     if(num_p_1==4)
     {
       std::vector<Point2f> obj_corners(4);
@@ -125,48 +124,54 @@ int CharRecog::charRecognise()
     while(1)
     {
       imshow( "pick_ocr", ocr_piece );
-      imshow( "source", img_100 );
       if(char(cvWaitKey(15))==27)break;
     }
     cvDestroyWindow("source");
+    cvDestroyWindow("pick_ocr");
 
 
     ////pre-process image
+    clock_t a=clock();
     TextDetector detector;
     vector<Mat> single_char_vec;
     single_char_vec.clear();
-    detector.segmentTextSrc(ocr_piece, single_char_vec,0,false);
-    detector.segmentTextSob(ocr_piece, single_char_vec,0,false);
+    detector.segmentSrcSlide(ocr_piece, single_char_vec,0,true);
+//    detector.segmentSrcMor(ocr_piece, single_char_vec,0,false);
+//    detector.segmentTextSob(ocr_piece, single_char_vec,0,false);
 
 
     //// identifing single characters.
     std::string license;
+#ifdef DEBUG
     std::cout<<"single_char_vec.size = "<<single_char_vec.size()<<std::endl;
+#endif
     for(int i=0;i<single_char_vec.size();i++)
     {
-       Mat single_char_;
-       single_char_ = single_char_vec.at(i);
        Mat single_char;
-       single_char = preprocessChar(single_char_);
-       std::cout<<"single_char = "<<single_char.rows<<" * "<<single_char.cols<<std::endl;
+       single_char = single_char_vec.at(i);
+#ifdef DEBUG
         while(1)
         {
           imshow("single_char",single_char);
           if(char(cvWaitKey(15))==27)break;
         }
         std::cout << "chars_identify" << std::endl;
+#endif
         auto block = single_char;
         auto character = CharsIdentify::instance()->identify(block, false);
-        license.append(character.second);
+        if(character.second!="NAN")
+        {
+            license.append(character.second);
+        }
+#ifdef DEBUG
         std::cout << "CharIdentify: " << character.second << std::endl;
+#endif
     }
     std::cout << "plateIdentify: " << license << std::endl;
 
     clock_t b=clock();
     cout<<"time cost = "<<1000*(double)(b - a) / CLOCKS_PER_SEC<<" ms "<<endl;
 
-    cvDestroyWindow("pick_ocr");
-    cvDestroyWindow("single_char");
     return 0;
 }
 
