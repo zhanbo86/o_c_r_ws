@@ -3,7 +3,7 @@
 
 #define CV_VERSION_THREE_TWO
 
-//#define DEBUG
+#define DEBUG
 
 namespace easyocr {
 

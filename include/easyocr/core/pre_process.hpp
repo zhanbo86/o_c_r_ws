@@ -23,6 +23,8 @@
 #include <bitset>
 #include <time.h>
 #include "easyocr/config.h"
+#include <tesseract/baseapi.h>
+#include <leptonica/allheaders.h>
 
 
 using namespace std;
@@ -57,6 +59,7 @@ protected:
     void setMorParameters(int char_size);
     void setThreParameters(int char_color);
     int slidingWnd(Mat& src, vector<Mat>& wnd, Size wndSize, double x_percent, double y_percent, int &char_mat_height, int &char_mat_width);
+    float findShortestDistance(vector<Point> &contoursA, vector<Point> &contoursB, Point &p_a, Point &p_b);
 private:
 //    string imageDirectory;
     double NaN = nan("not a number");

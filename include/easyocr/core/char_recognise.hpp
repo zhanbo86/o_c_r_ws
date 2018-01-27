@@ -7,7 +7,7 @@
 #include "pre_process.hpp"
 #include "easyocr/core/chars_identify.h"
 #include "easyocr/config.h"
-
+#include <tesseract/baseapi.h>
 
 
 class CharRecog

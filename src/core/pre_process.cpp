@@ -280,6 +280,32 @@ int TextDetector::slidingWnd(Mat& src, vector<Mat>& wnd,Size wndSize, double x_p
 }
 
 
+float TextDetector::findShortestDistance(vector<Point> &contoursA, vector<Point> &contoursB, Point &p_a, Point &p_b)
+{
+    float distance=0;
+    float min_distance=200;
+    vector<Point>::iterator itc_a = contoursA.begin();
+    vector<Point>::iterator itc_b = contoursB.begin();
+    while (itc_a != contoursA.end())
+    {
+        while (itc_b != contoursB.end())
+        {
+            distance = sqrt(pow(((*itc_a).x - (*itc_b).x),2)+pow(((*itc_a).y - (*itc_b).y),2));
+            if(distance < min_distance)
+            {
+                min_distance = distance;
+                p_a = *itc_a;
+                p_b = *itc_b;
+            }
+            itc_b++;
+        }
+        itc_a++;
+    }
+
+    return distance;
+}
+
+
 //segment the spine text
 void TextDetector::segmentSrcSlide(cv::Mat &spineGray, vector<Mat> &single_char_vec,
                                    int char_width, int char_height, int im_num, bool save,
@@ -347,6 +373,31 @@ void TextDetector::segmentSrcSlide(cv::Mat &spineGray, vector<Mat> &single_char_
       if(char(cvWaitKey(15))==27)break;
     }
 #endif
+
+
+
+//    //// Pass it to Tesseract API
+//    tesseract::TessBaseAPI tess;
+//    tess.Init(NULL, "eng", tesseract::OEM_DEFAULT);
+////    tess.SetVariable("tessedit_char_whitelist", "0123456789");
+////    tess.SetVariable("classify_bln_numeric_mode", "1");
+////    tess.SetPageSegMode(tesseract::PSM_SINGLE_WORD);
+//    tess.SetImage((uchar*)thresh_src.data, thresh_src.cols, thresh_src.rows, thresh_src.channels(), thresh_src.cols);
+//    Boxa* boxes = tess.GetComponentImages(tesseract::RIL_TEXTLINE, true, NULL, NULL);
+//    printf("Found %d textline image components.\n", boxes->n);
+//    for (int i = 0; i < boxes->n; i++){
+//        BOX* box = boxaGetBox(boxes, i, L_CLONE);
+//        tess.SetRectangle(box->x, box->y, box->w, box->h);
+//        char* ocrResult = tess.GetUTF8Text();
+//        int conf = tess.MeanTextConf();
+//        fprintf(stdout, "Box[%d]: x=%d, y=%d, w=%d, h=%d, confidence: %d, text: %s",
+//            i, box->x, box->y, box->w, box->h, conf, ocrResult);
+//    }
+
+//    //// Get the text
+//    char* out = tess.GetUTF8Text();
+//    std::cout << out << std::endl;
+
 
 
     ////slide window in src
@@ -463,24 +514,24 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     cv::Mat thres_window = open_src.clone();
 
 
-    //////morphological close
-    Mat elementDilate = getStructuringElement(MORPH_RECT, src_dilate_val);
-    Mat elementErode = getStructuringElement(MORPH_RECT, src_erode_val);
-    Mat dilate_out,erode_out;
-    morphologyEx(thres_window,dilate_out,MORPH_DILATE,elementDilate);
-    morphologyEx(dilate_out,erode_out,MORPH_ERODE,elementErode);
-//    erode_out = dilate_out.clone();
-#ifdef DEBUG
-    while(1)
-    {
-      imshow("erode_out", erode_out);
-      if(char(cvWaitKey(15))==27)break;
-    }
-#endif
+//    //////morphological close
+//    Mat elementDilate = getStructuringElement(MORPH_RECT, src_dilate_val);
+//    Mat elementErode = getStructuringElement(MORPH_RECT, src_erode_val);
+//    Mat dilate_out,erode_out;
+//    morphologyEx(thres_window,dilate_out,MORPH_DILATE,elementDilate);
+//    morphologyEx(dilate_out,erode_out,MORPH_ERODE,elementErode);
+////    erode_out = dilate_out.clone();
+//#ifdef DEBUG
+//    while(1)
+//    {
+//      imshow("erode_out", erode_out);
+//      if(char(cvWaitKey(15))==27)break;
+//    }
+//#endif
 
     ////find contours
     Mat img_contours;
-    erode_out.copyTo(img_contours);
+    thres_window.copyTo(img_contours);
     vector<vector<Point> > contours;
     findContours(img_contours,
                  contours,               // a vector of contours
@@ -497,39 +548,85 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 #endif
 
 
-    ////remove noise
+    ////detect contous neiboughbour
     vector<vector<Point> >::iterator itc = contours.begin();
-    vector<Rect> vecRect;
+    vector<vector<Point> >::iterator itc_next = contours.begin();
     while (itc != contours.end())
     {
-      Rect mr = boundingRect(Mat(*itc));
-      Mat auxRoi(thres_window, mr);
-      if (/*verifyCharSizes(auxRoi)*/1) vecRect.push_back(mr);
+        itc_next = itc;
+        itc_next++;
+        Point p_a;
+        Point p_b;
+        float min_distance;
+        while(itc_next != contours.end())
+        {
+            vector<Point> contoursA = *itc;
+            vector<Point> contoursB = *itc_next;
+            min_distance = findShortestDistance(contoursA,contoursB,p_a,p_b);
+//            std::cout<<"min_distance = "<<min_distance<<std::endl;
+//            std::cout<<"p_a = ("<<p_a.x<<","<<p_a.y<<")"<<std::endl;
+//            std::cout<<"p_b = ("<<p_b.x<<","<<p_b.y<<")"<<std::endl;
+            if(min_distance < 50)
+            {
+                line(thres_window, p_a, p_b, Scalar(255, 0, 0), 20);
+            }
+            itc_next++;
+        }
+
       ++itc;
     }
-
-    ////save single char image after segment
-    for(int char_num=0;char_num<vecRect.size();char_num++)
-    {
-         Mat single_char_=thres_window(vecRect.at(char_num));
-         Mat single_char;
-         single_char = preprocessChar(single_char_);
-         single_char_vec.push_back(single_char);
-        if(save)
-        {
-            const char* single_char_folder_ = "../../../src/easyocr/char_img";
-            std::stringstream ss(std::stringstream::in | std::stringstream::out);
-            ss << single_char_folder_ << "/" << im_num << "_src" << char_num<<"_"<<rand()<< ".jpg";
-            imwrite(ss.str(),single_char);
-        }
 #ifdef DEBUG
-        while(1)
-        {
-          imshow( "single_char", single_char_ );
-          if(char(cvWaitKey(15))==27)break;
-        }
-#endif
+    while(1)
+    {
+      imshow("thres_window", thres_window);
+      if(char(cvWaitKey(15))==27)break;
     }
+#endif
+
+
+
+//    ////remove noise
+//    vector<vector<Point> >::iterator itc = contours.begin();
+//    vector<Rect> vecRect;
+//    cv::Mat rectangle_show = thres_window.clone();
+//    while (itc != contours.end())
+//    {
+//      Rect mr = boundingRect(Mat(*itc));
+//      Mat auxRoi(thres_window, mr);
+//      if (/*verifyCharSizes(auxRoi)*/1) vecRect.push_back(mr);
+//      ++itc;
+//      rectangle(rectangle_show, mr, Scalar(255, 0, 0), 3);
+//    }
+//#ifdef DEBUG
+//    while(1)
+//    {
+//      imshow("rectangle_show",rectangle_show);
+//      if(char(cvWaitKey(15))==27)break;
+//    }
+//#endif
+
+//    ////save single char image after segment
+//    for(int char_num=0;char_num<vecRect.size();char_num++)
+//    {
+//         Mat single_char_=thres_window(vecRect.at(char_num));
+//         Mat single_char;
+//         single_char = preprocessChar(single_char_);
+//         single_char_vec.push_back(single_char);
+//        if(save)
+//        {
+//            const char* single_char_folder_ = "../../../src/easyocr/char_img";
+//            std::stringstream ss(std::stringstream::in | std::stringstream::out);
+//            ss << single_char_folder_ << "/" << im_num << "_src" << char_num<<"_"<<rand()<< ".jpg";
+//            imwrite(ss.str(),single_char);
+//        }
+//#ifdef DEBUG
+//        while(1)
+//        {
+//          imshow( "single_char", single_char_ );
+//          if(char(cvWaitKey(15))==27)break;
+//        }
+//#endif
+//    }
 
 #ifdef DEBUG
     thres_window.release();
@@ -541,6 +638,7 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     cvDestroyWindow("sepertate_im");
     cvDestroyWindow("single_char");
     cvDestroyWindow("window_add");
+    cvDestroyWindow("rectangle_show");
 #endif
 }
 
