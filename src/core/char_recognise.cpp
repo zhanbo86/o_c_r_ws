@@ -121,13 +121,29 @@ int CharRecog::charRecognise()
       line( img_100 , obj_corners[2], obj_corners[3], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
       line( img_100 , obj_corners[3], obj_corners[0], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
     }
-    while(1)
+
+    ////choice char width and height
+    num_p_1 = 0;
+    x_int_1 = 0;
+    y_int_1 = 0;
+    capture_1 = false;
+    imshow( "pick_ocr", ocr_piece );
+    cvSetMouseCallback("pick_ocr",my_mouse_callback_1,NULL);
+    while(num_p_1!=4)
     {
       imshow( "pick_ocr", ocr_piece );
       if(char(cvWaitKey(15))==27)break;
     }
+
+    int char_width = 0;
+    int char_height = 0;
+    if(num_p_1==4)
+    {
+      char_width = x_temp_1[1] - x_temp_1[0];
+      char_height = y_temp_1[2] - y_temp_1[1];
+    }
     cvDestroyWindow("source");
-    cvDestroyWindow("pick_ocr");
+//    cvDestroyWindow("pick_ocr");
 
 
     ////pre-process image
@@ -135,9 +151,16 @@ int CharRecog::charRecognise()
     TextDetector detector;
     vector<Mat> single_char_vec;
     single_char_vec.clear();
-    detector.segmentSrcSlide(ocr_piece, single_char_vec,0,true);
+    int char_mat_height = 0;
+    int char_mat_width = 0;
+    detector.segmentSrcSlide(ocr_piece, single_char_vec,char_width,char_height,0,true,char_mat_height,char_mat_width);
+    Mat single_char_precise(char_mat_height,char_mat_width, CV_8UC1);
 //    detector.segmentSrcMor(ocr_piece, single_char_vec,0,false);
 //    detector.segmentTextSob(ocr_piece, single_char_vec,0,false);
+//    std::cout<<"ocr_piece_size = "<<ocr_piece.rows<<" * "<<ocr_piece.cols<<std::endl;
+//    std::cout<<"char_width = "<<char_width<<" , "<<"char_height = "<<char_height<<std::endl;
+//    std::cout<<"single_char_amount = "<<single_char_vec.size()<<std::endl;
+//     std::cout<<"char_mat_height = "<<char_mat_height<<" , "<<"char_mat_width = "<<char_mat_width<<std::endl;
 
 
     //// identifing single characters.
@@ -157,17 +180,74 @@ int CharRecog::charRecognise()
         }
         std::cout << "chars_identify" << std::endl;
 #endif
-        auto block = single_char;
-        auto character = CharsIdentify::instance()->identify(block, false);
-        if(character.second!="NAN")
+        cv::Mat idx;
+        findNonZero(single_char, idx);
+        int one_count = (int)idx.total();
+        int zero_count = (int)single_char.total() - one_count;
+        float one_percent = (float)one_count/(float)(one_count+zero_count);
+//            std::cout<<"one_count = "<<one_count<<std::endl;
+//            std::cout<<"zero_count = "<<zero_count<<std::endl;
+//            std::cout<<"one_percent = "<<one_percent<<std::endl;
+        int rows_ = i/char_mat_width;
+        int cols_ = i - rows_*char_mat_width;
+        if(one_percent>0.1)
         {
-            license.append(character.second);
+            auto block = single_char;
+            float maxValue_;
+            int maxValue_int;
+            auto character = CharsIdentify::instance()->identify(block, maxValue_,false);
+            if(maxValue_>1.0)
+            {
+                maxValue_int = 255;
+            }
+            else if(maxValue_<0.0)
+            {
+                maxValue_int = 0;
+            }
+            else
+            {
+                maxValue_int = (int)(maxValue_*255);
+            }
+//            std::cout<<"maxValue_int = "<<maxValue_int<<std::endl;
+//            std::cout<<"rows = "<<rows_<<" , "<<"cols = "<<cols_<<std::endl;
+
+
+            if(character.second!="NAN")
+            {
+                license.append(character.second);
+                single_char_precise.at<uchar>(rows_,cols_) = maxValue_int;
+            }
+            else
+            {
+                 single_char_precise.at<uchar>(rows_,cols_) = 0;
+            }
         }
+        else
+        {
+            single_char_precise.at<uchar>(rows_,cols_) = 0;
+        }
+
+
 #ifdef DEBUG
         std::cout << "CharIdentify: " << character.second << std::endl;
 #endif
     }
+    std::cout<<"ocr_piece_size = "<<ocr_piece.rows<<" * "<<ocr_piece.cols<<std::endl;
+    std::cout<<"char_width = "<<char_width<<" , "<<"char_height = "<<char_height<<std::endl;
+    std::cout<<"single_char_amount = "<<single_char_vec.size()<<std::endl;
+    std::cout<<"char_mat_height = "<<char_mat_height<<" , "<<"char_mat_width = "<<char_mat_width<<std::endl;
     std::cout << "plateIdentify: " << license << std::endl;
+
+    Mat single_char_precise_zoom;
+    resize(single_char_precise,single_char_precise_zoom,cv::Size((int)(ocr_piece.size().width),(int)(ocr_piece.size().height)));
+    while(1)
+    {
+      imshow( "single_char_precise", single_char_precise_zoom );
+      imshow( "pick_ocr", ocr_piece );
+      if(char(cvWaitKey(15))==27)break;
+    }
+    cvDestroyWindow("single_char_precise");
+    cvDestroyWindow("pick_ocr");
 
     clock_t b=clock();
     cout<<"time cost = "<<1000*(double)(b - a) / CLOCKS_PER_SEC<<" ms "<<endl;

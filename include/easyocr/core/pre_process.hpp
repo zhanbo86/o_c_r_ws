@@ -42,7 +42,7 @@ public:
 //    TextDetector(TextDetecorParams &params, std::string imgDir = "");
     void segmentSobMor(cv::Mat &spineImage, vector<Mat> &single_char_vec, int im_num, bool save);
     void segmentSrcMor(cv::Mat &spineImage, vector<Mat> &single_char_vec, int im_num, bool save);
-    void segmentSrcSlide(cv::Mat &spineImage, vector<Mat> &single_char_vec, int im_num, bool save);
+    void segmentSrcSlide(cv::Mat &spineImage, vector<Mat> &single_char_vec, int char_width, int char_height, int im_num, bool save, int &char_mat_height, int &char_mat_width);
 protected:
     //pre-processing
     cv::Mat preProcess(cv::Mat &image);
@@ -56,7 +56,7 @@ protected:
     Mat preprocessChar(Mat in);
     void setMorParameters(int char_size);
     void setThreParameters(int char_color);
-    int slidingWnd(Mat& src, vector<Mat>& wnd, Size wndSize, double x_percent, double y_percent);
+    int slidingWnd(Mat& src, vector<Mat>& wnd, Size wndSize, double x_percent, double y_percent, int &char_mat_height, int &char_mat_width);
 private:
 //    string imageDirectory;
     double NaN = nan("not a number");

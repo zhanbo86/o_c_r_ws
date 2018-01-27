@@ -22,7 +22,7 @@ public:
   void classifyChinese(std::vector<CCharacter>& charVec);
   void classifyChineseGray(std::vector<CCharacter>& charVec);
 
-  std::pair<std::string, std::string> identify(cv::Mat input, bool isAlphabet = false);
+  std::pair<std::string, std::string> identify(cv::Mat input, float &maxValue_, bool isAlphabet = false);
   int identify(std::vector<cv::Mat> inputs, std::vector<std::pair<std::string, std::string>>& outputs,
                std::vector<bool> isChineseVec);
 

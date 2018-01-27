@@ -137,22 +137,39 @@ int CollectPic::imgCollect()
           line( img_100 , obj_corners[2], obj_corners[3], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
           line( img_100 , obj_corners[3], obj_corners[0], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
         }
-        while(1)
+
+        ////choice char width and height
+        num_p_2 = 0;
+        x_int_2 = 0;
+        y_int_2 = 0;
+        capture_2 = false;
+        imshow( "pick_ocr", ocr_piece );
+        cvSetMouseCallback("pick_ocr",my_mouse_callback_2,NULL);
+        while(num_p_2!=4)
         {
-//          std::cout<<"ocr_piece size "<<ocr_piece.rows<<" * "<<ocr_piece.cols<<std::endl;
           imshow( "pick_ocr", ocr_piece );
-//          imshow( "source", img_100 );
           if(char(cvWaitKey(15))==27)break;
+        }
+
+        int char_width = 0;
+        int char_height = 0;
+        if(num_p_2==4)
+        {
+          char_width = x_temp_2[1] - x_temp_2[0];
+          char_height = y_temp_2[2] - y_temp_2[1];
         }
         cvDestroyWindow("source");
         cvDestroyWindow("pick_ocr");
 
 
         ////pre-process image
+        clock_t a=clock();
         TextDetector detector;
         vector<Mat> single_char_vec;
         single_char_vec.clear();
-        detector.segmentSrcSlide(ocr_piece, single_char_vec,im_num,true);
+        int char_mat_height,char_mat_width;
+        detector.segmentSrcSlide(ocr_piece, single_char_vec,char_width,char_height,0,true,char_mat_height,char_mat_width);
+        Mat single_char_precise(char_mat_height,char_mat_width, CV_8UC1);
 //        detector.segmentSrcMor(ocr_piece, single_char_vec,im_num,true);
 //        detector.segmentTextSob(ocr_piece, single_char_vec,im_num,true);
     }

@@ -222,7 +222,8 @@ void TextDetector::setThreParameters(int char_color)
     }
 }
 
-int TextDetector::slidingWnd(Mat& src, vector<Mat>& wnd, Size wndSize, double x_percent, double y_percent)
+int TextDetector::slidingWnd(Mat& src, vector<Mat>& wnd,Size wndSize, double x_percent, double y_percent,
+                             int &char_mat_height,int &char_mat_width)
 {
     std::cout<<"size = "<<wndSize<<std::endl;
     int count = 0;  //记录滑动窗口的数目
@@ -233,30 +234,44 @@ int TextDetector::slidingWnd(Mat& src, vector<Mat>& wnd, Size wndSize, double x_
     int64 count1 = getTickCount();
     double freq = getTickFrequency();
     std::cout<<"picece_orc size is "<<src.rows<<" * "<<src.cols<<std::endl;
+    int rows_count=0;
+    int cols_count=0;
 
     //利用窗口对图像进行遍历
     for (int i = 0; i < src.rows- wndSize.height; i+=y_step)
     {
+        rows_count++;
+        cols_count = 0;
         for (int j = 0; j < src.cols- wndSize.width; j+=x_step)
         {
             Rect roi(Point(j, i), wndSize);
-            Mat ROI = src(roi);          
-            cv::Mat idx;
-            findNonZero(ROI, idx);
-            int one_count = (int)idx.total();
+            Mat ROI = src(roi);
+            wnd.push_back(ROI);
+            count++;
+            cols_count++;
 
-            int zero_count = (int)ROI.total() - one_count;
-            float one_percent = (float)one_count/(float)(one_count+zero_count);
-//            std::cout<<"one_count = "<<one_count<<std::endl;
-//            std::cout<<"zero_count = "<<zero_count<<std::endl;
-//            std::cout<<"one_percent = "<<one_percent<<std::endl;
-            if(one_percent>0.1)
-            {
-                 wnd.push_back(ROI);
-                 count++;
-            }
+//            cv::Mat idx;
+//            findNonZero(ROI, idx);
+//            int one_count = (int)idx.total();
+
+//            int zero_count = (int)ROI.total() - one_count;
+//            float one_percent = (float)one_count/(float)(one_count+zero_count);
+////            std::cout<<"one_count = "<<one_count<<std::endl;
+////            std::cout<<"zero_count = "<<zero_count<<std::endl;
+////            std::cout<<"one_percent = "<<one_percent<<std::endl;
+//            if(one_percent>0.1)
+//            {
+//                 wnd.push_back(ROI);
+//                 count++;
+//            }
+//            else
+//            {
+//                single_char_precise.at<uchar>(i,j) = 0;
+//            }
         }
     }
+    char_mat_height = rows_count;
+    char_mat_width = cols_count;
 
     int64 count2 = getTickCount();
     double time = (count2 - count1) / freq;
@@ -266,7 +281,9 @@ int TextDetector::slidingWnd(Mat& src, vector<Mat>& wnd, Size wndSize, double x_
 
 
 //segment the spine text
-void TextDetector::segmentSrcSlide(cv::Mat &spineGray, vector<Mat> &single_char_vec, int im_num, bool save)
+void TextDetector::segmentSrcSlide(cv::Mat &spineGray, vector<Mat> &single_char_vec,
+                                   int char_width, int char_height, int im_num, bool save,
+                                   int &char_mat_height,int &char_mat_width)
 {
     srand((unsigned)time(NULL));
     ////set parameters
@@ -334,7 +351,7 @@ void TextDetector::segmentSrcSlide(cv::Mat &spineGray, vector<Mat> &single_char_
 
     ////slide window in src
     vector<Mat> charWnd;
-    int count=slidingWnd(thresh_src, charWnd, Size(100, 130),0.1,0.1);
+    int count=slidingWnd(thresh_src, charWnd,Size(char_width, char_height),0.1,0.1,char_mat_height,char_mat_width);
     std::cout<<"slide count is "<<count<<std::endl;
 
 

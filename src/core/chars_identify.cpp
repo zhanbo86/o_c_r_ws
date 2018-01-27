@@ -226,12 +226,13 @@ bool CharsIdentify::isCharacter(cv::Mat input, std::string& label, float& maxVal
 }
 
 
-std::pair<std::string, std::string> CharsIdentify::identify(cv::Mat input, bool isAlphabet) {
+std::pair<std::string, std::string> CharsIdentify::identify(cv::Mat input, float &maxValue_,bool isAlphabet) {
   cv::Mat feature = charFeatures(input, kPredictSize);
   float maxVal = -2;
   auto index = static_cast<int>(classify(feature, maxVal,isAlphabet));
+  maxValue_ = maxVal;
   if (index < kCharactersNumber) {
-      if(maxVal>0.95)
+      if(maxVal>0.90)
       {
           return std::make_pair(kChars[index], kChars[index]);
       }
