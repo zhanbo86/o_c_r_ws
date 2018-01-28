@@ -713,6 +713,8 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     Mat img_contours;
     thres_window.copyTo(img_contours);
     vector<vector<Point> > contours;
+    vector<vector<Point> > contours_temp;
+    contours_temp.clear();
     findContours(img_contours,
                  contours,               // a vector of contours
                  CV_RETR_EXTERNAL,       // retrieve the external contours
@@ -724,9 +726,21 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
       imshow("sepertate_im",sepertate_im);
       if(char(cvWaitKey(15))==27)break;
     }
+//    for(int i=0;i<contours.size();i++)
+//    {
+//        contours_temp.push_back(contours.at(i));
+//        drawContours(sepertate_im,contours_temp,-1,Scalar(0),2);
+//        while(1)
+//        {
+//          imshow("sepertate_im",sepertate_im);
+//          if(char(cvWaitKey(15))==27)break;
+//        }
+//        cvDestroyWindow("sepertate_im");
+//    }
 
 
     ////detect contous neiboughbour
+    std::cout<<"it is ok!!!!"<<std::endl;
     vector<vector<Point> >::iterator itc = contours.begin();
     vector<vector<Point> >::iterator itc_next = contours.begin();
     int contours_num_a = 0;
@@ -739,6 +753,7 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
         Point p_a;
         Point p_b;
         float min_distance = 200;
+        float threshold_distance;
         while(itc_next != contours.end())
         {
             vector<Point> contoursA = *itc;
@@ -747,7 +762,8 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 //            std::cout<<"min_distance = "<<min_distance<<std::endl;
 //            std::cout<<"p_a = ("<<p_a.x<<","<<p_a.y<<")"<<std::endl;
 //            std::cout<<"p_b = ("<<p_b.x<<","<<p_b.y<<")"<<std::endl;
-            if(min_distance < 10)
+            threshold_distance = 10*(1+abs((float)(p_b.y-p_a.y))/min_distance);
+            if(min_distance < threshold_distance)
             {
                 line(thres_window, p_a, p_b, Scalar(255, 0, 0), 10);
             }
@@ -764,35 +780,50 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     }
 #endif
 
+    ////find contours again
+    Mat img_contours_again;
+    thres_window.copyTo(img_contours_again);
+    vector<vector<Point> > contours_again;
+    findContours(img_contours_again,
+                 contours_again,               // a vector of contours
+                 CV_RETR_EXTERNAL,       // retrieve the external contours
+                 CV_CHAIN_APPROX_NONE);  // all pixels of each contours
+    Mat sepertate_im_again(thres_window.size(),thres_window.depth(),Scalar(255));
+    drawContours(sepertate_im_again,contours_again,-1,Scalar(0),2);
+    while(1)
+    {
+      imshow("sepertate_im_again",sepertate_im_again);
+      if(char(cvWaitKey(15))==27)break;
+    }
 
-//    vector<vector<Point> >::iterator itc = contours.begin();
-//    vector<Rect> vecRect;
-//    while (itc != contours.end())
-//    {
-//      Rect mr = boundingRect(Mat(*itc));
-//      Mat auxRoi(thres_window, mr);
-//      if (/*verifyCharSizes(auxRoi)*/1) vecRect.push_back(mr);
-//      ++itc;
-//    }
+    vector<vector<Point> >::iterator itc_again = contours_again.begin();
+    vector<Rect> vecRect;
+    while (itc_again != contours_again.end())
+    {
+      Rect mr = boundingRect(Mat(*itc_again));
+      Mat auxRoi(thres_window, mr);
+      if (/*verifyCharSizes(auxRoi)*/1) vecRect.push_back(mr);
+      ++itc_again;
+    }
 
-//    ////save single char image after segment
-//    for(int char_num=0;char_num<vecRect.size();char_num++)
-//    {
-//         Mat single_char=thres_window(vecRect.at(char_num));
-//         single_char_vec.push_back(single_char);
-//        if(save)
-//        {
-//            const char* single_char_folder_ = "../../../src/easyocr/char_img";
-//            std::stringstream ss(std::stringstream::in | std::stringstream::out);
-//            ss << single_char_folder_ << "/" << im_num << "_sob" << char_num << ".jpg";
-//            imwrite(ss.str(),single_char);
-//        }
-//        while(1)
-//        {
-//          imshow( "single_char", single_char );
-//          if(char(cvWaitKey(15))==27)break;
-//        }
-//    }
+    ////save single char image after segment
+    for(int char_num=0;char_num<vecRect.size();char_num++)
+    {
+         Mat single_char=thres_window(vecRect.at(char_num));
+         single_char_vec.push_back(single_char);
+        if(save)
+        {
+            const char* single_char_folder_ = "../../../src/easyocr/char_img";
+            std::stringstream ss(std::stringstream::in | std::stringstream::out);
+            ss << single_char_folder_ << "/" << im_num << "_sob" << char_num << ".jpg";
+            imwrite(ss.str(),single_char);
+        }
+        while(1)
+        {
+          imshow( "single_char", single_char );
+          if(char(cvWaitKey(15))==27)break;
+        }
+    }
 
 
 //    thres_window.release();

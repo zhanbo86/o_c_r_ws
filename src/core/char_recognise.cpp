@@ -78,7 +78,7 @@ int CharRecog::charRecognise()
     capture_1 = false;
 
     //// Load image and resize to 1280*1024,source img is 2448*2048
-    Mat im = imread("/home/zb/BoZhan/ocr_ws/0104PCB/14.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_ANYCOLOR);
+    Mat im = imread("/home/zb/BoZhan/ocr_ws/0104PCB/6.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_ANYCOLOR);
     Size low_res = cv::Size((int)(im.size().width/2),(int)(im.size().height/2));
     Mat img_100(low_res,im.depth(),1);
     if (im.empty())
@@ -267,21 +267,20 @@ int CharRecog::charRecognise()
           imshow("single_char",single_char);
           if(char(cvWaitKey(15))==27)break;
         }
-        std::cout << "chars_identify" << std::endl;
 #endif
-            auto block = single_char;
-            float maxValue_;
-            auto character = CharsIdentify::instance()->identify(block, maxValue_,false);
-            if(character.second!="NAN")
-            {
-                license.append(character.second);
-            }
+        auto block = single_char;
+        float maxValue_;
+        auto character = CharsIdentify::instance()->identify(block, maxValue_,false);
+        if(character.second!="NAN")
+        {
+            license.append(character.second);
+        }
 
 #ifdef DEBUG
         std::cout << "CharIdentify: " << character.second << std::endl;
 #endif
     }
-
+    std::cout << "PlantIdentify: " << license << std::endl;
     clock_t b=clock();
     cout<<"time cost = "<<1000*(double)(b - a) / CLOCKS_PER_SEC<<" ms "<<endl;
 
