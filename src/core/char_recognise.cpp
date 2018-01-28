@@ -78,7 +78,7 @@ int CharRecog::charRecognise()
     capture_1 = false;
 
     //// Load image and resize to 1280*1024,source img is 2448*2048
-    Mat im = imread("/home/zb/BoZhan/ocr_ws/0104PCB/9.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_ANYCOLOR);
+    Mat im = imread("/home/zb/BoZhan/ocr_ws/0104PCB/14.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_ANYCOLOR);
     Size low_res = cv::Size((int)(im.size().width/2),(int)(im.size().height/2));
     Mat img_100(low_res,im.depth(),1);
     if (im.empty())
@@ -155,8 +155,8 @@ int CharRecog::charRecognise()
     int char_mat_width = 0;
 //    detector.segmentSrcSlide(ocr_piece, single_char_vec,char_width,char_height,0,true,char_mat_height,char_mat_width);
 //    Mat single_char_precise(char_mat_height,char_mat_width, CV_8UC1);
-    detector.segmentSrcMor(ocr_piece, single_char_vec,0,false);
-//    detector.segmentTextSob(ocr_piece, single_char_vec,0,false);
+//    detector.segmentSrcMor(ocr_piece, single_char_vec,0,false);
+    detector.segmentSobMor(ocr_piece, single_char_vec,0,false);
 //    std::cout<<"ocr_piece_size = "<<ocr_piece.rows<<" * "<<ocr_piece.cols<<std::endl;
 //    std::cout<<"char_width = "<<char_width<<" , "<<"char_height = "<<char_height<<std::endl;
 //    std::cout<<"single_char_amount = "<<single_char_vec.size()<<std::endl;

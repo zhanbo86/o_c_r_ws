@@ -280,14 +280,17 @@ int TextDetector::slidingWnd(Mat& src, vector<Mat>& wnd,Size wndSize, double x_p
 }
 
 
-float TextDetector::findShortestDistance(vector<Point> &contoursA, vector<Point> &contoursB, Point &p_a, Point &p_b)
+float TextDetector::findShortestDistance(vector<Point> &contoursA_, vector<Point> &contoursB_, Point &p_a, Point &p_b)
 {
     float distance=0;
     float min_distance=200;
+    vector<Point> contoursA = contoursA_;
+    vector<Point> contoursB = contoursB_;
     vector<Point>::iterator itc_a = contoursA.begin();
     vector<Point>::iterator itc_b = contoursB.begin();
     while (itc_a != contoursA.end())
     {
+        itc_b = contoursB.begin();
         while (itc_b != contoursB.end())
         {
             distance = sqrt(pow(((*itc_a).x - (*itc_b).x),2)+pow(((*itc_a).y - (*itc_b).y),2));
@@ -301,8 +304,7 @@ float TextDetector::findShortestDistance(vector<Point> &contoursA, vector<Point>
         }
         itc_a++;
     }
-
-    return distance;
+    return min_distance;
 }
 
 
@@ -511,7 +513,8 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
       if(char(cvWaitKey(15))==27)break;
     }
 #endif
-    cv::Mat thres_window = open_src.clone();
+//    cv::Mat thres_window = open_src.clone();
+    cv::Mat thres_window = thresh_src.clone();
 
 
 //    //////morphological close
@@ -551,13 +554,16 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     ////detect contous neiboughbour
     vector<vector<Point> >::iterator itc = contours.begin();
     vector<vector<Point> >::iterator itc_next = contours.begin();
+    int contours_num_a = 0;
+    int contours_num_b = 0;
     while (itc != contours.end())
     {
+        contours_num_a++;
         itc_next = itc;
         itc_next++;
         Point p_a;
         Point p_b;
-        float min_distance;
+        float min_distance = 200;
         while(itc_next != contours.end())
         {
             vector<Point> contoursA = *itc;
@@ -566,13 +572,13 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 //            std::cout<<"min_distance = "<<min_distance<<std::endl;
 //            std::cout<<"p_a = ("<<p_a.x<<","<<p_a.y<<")"<<std::endl;
 //            std::cout<<"p_b = ("<<p_b.x<<","<<p_b.y<<")"<<std::endl;
-            if(min_distance < 50)
+            if(min_distance < 10)
             {
-                line(thres_window, p_a, p_b, Scalar(255, 0, 0), 20);
+                line(thres_window, p_a, p_b, Scalar(255, 0, 0), 10);
             }
             itc_next++;
+            contours_num_b++;
         }
-
       ++itc;
     }
 #ifdef DEBUG
@@ -678,7 +684,7 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 //    std::cout<<window_tmp<<std::endl;
     while(1)
     {
-      imshow("window_tmp", window_tmp);
+      imshow("window_thresh", window_tmp);
       if(char(cvWaitKey(15))==27)break;
     }
     //进行open操作
@@ -692,26 +698,20 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     }
     cv::Mat thres_window = open_sob.clone();
 
-    while(1)
-    {
-      imshow("thres_window", thres_window);
-      if(char(cvWaitKey(15))==27)break;
-    }
-
-    //进行close操作
-    Mat elementDilate = getStructuringElement(MORPH_RECT, Size(5, 15));
-    Mat elementErode = getStructuringElement(MORPH_RECT, Size(5, 5));
-    Mat dilate_out,erode_out;
-    morphologyEx(thres_window,dilate_out,MORPH_DILATE,elementDilate);
-    morphologyEx(dilate_out,erode_out,MORPH_ERODE,elementErode);
-    while(1)
-    {
-      imshow("erode_out", erode_out);
-      if(char(cvWaitKey(15))==27)break;
-    }
+//    //进行close操作
+//    Mat elementDilate = getStructuringElement(MORPH_RECT, Size(5, 15));
+//    Mat elementErode = getStructuringElement(MORPH_RECT, Size(5, 5));
+//    Mat dilate_out,erode_out;
+//    morphologyEx(thres_window,dilate_out,MORPH_DILATE,elementDilate);
+//    morphologyEx(dilate_out,erode_out,MORPH_ERODE,elementErode);
+//    while(1)
+//    {
+//      imshow("erode_out", erode_out);
+//      if(char(cvWaitKey(15))==27)break;
+//    }
 
     Mat img_contours;
-    erode_out.copyTo(img_contours);
+    thres_window.copyTo(img_contours);
     vector<vector<Point> > contours;
     findContours(img_contours,
                  contours,               // a vector of contours
@@ -725,47 +725,84 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
       if(char(cvWaitKey(15))==27)break;
     }
 
+
+    ////detect contous neiboughbour
     vector<vector<Point> >::iterator itc = contours.begin();
-    vector<Rect> vecRect;
-
-
-
+    vector<vector<Point> >::iterator itc_next = contours.begin();
+    int contours_num_a = 0;
+    int contours_num_b = 0;
     while (itc != contours.end())
     {
-      Rect mr = boundingRect(Mat(*itc));
-      Mat auxRoi(thres_window, mr);
-      if (/*verifyCharSizes(auxRoi)*/1) vecRect.push_back(mr);
+        contours_num_a++;
+        itc_next = itc;
+        itc_next++;
+        Point p_a;
+        Point p_b;
+        float min_distance = 200;
+        while(itc_next != contours.end())
+        {
+            vector<Point> contoursA = *itc;
+            vector<Point> contoursB = *itc_next;
+            min_distance = findShortestDistance(contoursA,contoursB,p_a,p_b);
+//            std::cout<<"min_distance = "<<min_distance<<std::endl;
+//            std::cout<<"p_a = ("<<p_a.x<<","<<p_a.y<<")"<<std::endl;
+//            std::cout<<"p_b = ("<<p_b.x<<","<<p_b.y<<")"<<std::endl;
+            if(min_distance < 10)
+            {
+                line(thres_window, p_a, p_b, Scalar(255, 0, 0), 10);
+            }
+            itc_next++;
+            contours_num_b++;
+        }
       ++itc;
     }
-
-    ////save single char image after segment
-    for(int char_num=0;char_num<vecRect.size();char_num++)
+#ifdef DEBUG
+    while(1)
     {
-         Mat single_char=thres_window(vecRect.at(char_num));
-         single_char_vec.push_back(single_char);
-        if(save)
-        {
-            const char* single_char_folder_ = "../../../src/easyocr/char_img";
-            std::stringstream ss(std::stringstream::in | std::stringstream::out);
-            ss << single_char_folder_ << "/" << im_num << "_sob" << char_num << ".jpg";
-            imwrite(ss.str(),single_char);
-        }
-        while(1)
-        {
-          imshow( "single_char", single_char );
-          if(char(cvWaitKey(15))==27)break;
-        }
+      imshow("thres_window", thres_window);
+      if(char(cvWaitKey(15))==27)break;
     }
+#endif
 
 
-    thres_window.release();
-    cvDestroyWindow("sharpen");
-    cvDestroyWindow("src_sobel");
-    cvDestroyWindow("open_sob");
-    cvDestroyWindow("thres_window");
-    cvDestroyWindow("erode_out");
-    cvDestroyWindow("sepertate_im");
-    cvDestroyWindow("single_char");
+//    vector<vector<Point> >::iterator itc = contours.begin();
+//    vector<Rect> vecRect;
+//    while (itc != contours.end())
+//    {
+//      Rect mr = boundingRect(Mat(*itc));
+//      Mat auxRoi(thres_window, mr);
+//      if (/*verifyCharSizes(auxRoi)*/1) vecRect.push_back(mr);
+//      ++itc;
+//    }
+
+//    ////save single char image after segment
+//    for(int char_num=0;char_num<vecRect.size();char_num++)
+//    {
+//         Mat single_char=thres_window(vecRect.at(char_num));
+//         single_char_vec.push_back(single_char);
+//        if(save)
+//        {
+//            const char* single_char_folder_ = "../../../src/easyocr/char_img";
+//            std::stringstream ss(std::stringstream::in | std::stringstream::out);
+//            ss << single_char_folder_ << "/" << im_num << "_sob" << char_num << ".jpg";
+//            imwrite(ss.str(),single_char);
+//        }
+//        while(1)
+//        {
+//          imshow( "single_char", single_char );
+//          if(char(cvWaitKey(15))==27)break;
+//        }
+//    }
+
+
+//    thres_window.release();
+//    cvDestroyWindow("sharpen");
+//    cvDestroyWindow("src_sobel");
+//    cvDestroyWindow("open_sob");
+//    cvDestroyWindow("thres_window");
+//    cvDestroyWindow("erode_out");
+//    cvDestroyWindow("sepertate_im");
+//    cvDestroyWindow("single_char");
 }
 
 
