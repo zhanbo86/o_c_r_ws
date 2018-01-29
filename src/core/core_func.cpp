@@ -595,7 +595,7 @@ void clearBorder(const Mat &img, Rect& cropRect) {
     for (int i = 0; i < in.rows; ++i) {
       bool bFind = false;
       for (int j = 0; j < in.cols; ++j) {
-        if (in.data[i * in.step[0] + j] > 20) {
+        if (in.data[i * in.step[0] + j] > 1) {
           top = i;
           bFind = true;
           break;
@@ -611,7 +611,7 @@ void clearBorder(const Mat &img, Rect& cropRect) {
          --i) {
       bool bFind = false;
       for (int j = 0; j < in.cols; ++j) {
-        if (in.data[i * in.step[0] + j] > 20) {
+        if (in.data[i * in.step[0] + j] > 1) {
           bottom = i;
           bFind = true;
           break;
@@ -629,7 +629,7 @@ void clearBorder(const Mat &img, Rect& cropRect) {
     for (int j = 0; j < in.cols; ++j) {
       bool bFind = false;
       for (int i = 0; i < in.rows; ++i) {
-        if (in.data[i * in.step[0] + j] > 20) {
+        if (in.data[i * in.step[0] + j] > 1) {
           left = j;
           bFind = true;
           break;
@@ -645,7 +645,7 @@ void clearBorder(const Mat &img, Rect& cropRect) {
          --j) {
       bool bFind = false;
       for (int i = 0; i < in.rows; ++i) {
-        if (in.data[i * in.step[0] + j] > 20) {
+        if (in.data[i * in.step[0] + j] > 1) {
           right = j;
           bFind = true;
 

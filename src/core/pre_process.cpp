@@ -185,7 +185,7 @@ void TextDetector::setMorParameters(int char_size)
            src_open_val = Size(5, 5);
            src_dilate_val = Size(10, 20);
            src_erode_val = Size(5, 5);
-           connect_dis = 8;
+           connect_dis = 7;
         break;
         case MEDCHAR:
             src_open_val = Size(5, 5);
@@ -204,7 +204,7 @@ void TextDetector::setMorParameters(int char_size)
            src_open_val = Size(5, 5);
            src_dilate_val = Size(5, 20);
            src_erode_val = Size(5, 5);
-           connect_dis = 8;
+           connect_dis = 7;
         break;
     }
 }
@@ -504,38 +504,12 @@ void TextDetector::segmentSrcSlide(cv::Mat &spineGray, vector<Mat> &single_char_
 
 
 //segment the spine text
-void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_vec, int im_num, bool save)
+void TextDetector::segmentSrcPre(cv::Mat &spineGray)
 {
-    srand((unsigned)time(NULL));
-    ////set parameters
-    int char_size;
-#ifdef DEBUG
-    printf("please input char size: big is 1, mediate is 2, small is 3\n");
-    scanf("%d",&char_size);
-#endif
-    setMorParameters(char_size);
-    int char_color;
-#ifdef DEBUG
-    printf("please input char size: white is 1, black is 2\n");
-    scanf(" %d",&char_color);
-#endif
-    setThreParameters(char_color);
-#ifdef DEBUG
-    std::cout<<"char_size = "<<char_size<<","<<"char_color = "<<char_color<<std::endl;
-#endif
-
-
     ////gauss smoothing
     int m_GaussianBlurSize = 5;
     Mat mat_blur;
     GaussianBlur(spineGray, mat_blur, Size(m_GaussianBlurSize, m_GaussianBlurSize), 0, 0, BORDER_DEFAULT);
-#ifdef DEBUG
-    while(1)
-    {
-      imshow("src_gauss", mat_blur);
-      if(char(cvWaitKey(15))==27)break;
-    }
-#endif
 
     ////histequal and sharpen
     Mat spineGrayTemp = mat_blur - 0.5;
@@ -543,13 +517,6 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     adaptiveHistEqual(spineGrayTemp, spineAhe, 0.01);
     cv::Mat spineShrpen;
     sharpenImage(spineAhe, spineShrpen);
-#ifdef DEBUG
-    while(1)
-    {
-      imshow("sharpen", spineShrpen);
-      if(char(cvWaitKey(15))==27)break;
-    }
-#endif
 
     ////threshold
     cv::Mat thresh_src;
@@ -563,18 +530,174 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     }
 
 
+    ////morphological open
+    setMorParameters(1);
+    Mat element_src = getStructuringElement(MORPH_RECT, src_open_val);
+    Mat open_src;
+    morphologyEx(thresh_src,open_src,MORPH_OPEN,element_src);
+    cv::Mat thres_window = thresh_src.clone();
+
+
+    std::cout<<"it is ok!!!"<<std::endl;
+
+    ////find contours
+    Mat img_contours;
+    thres_window.copyTo(img_contours);
+    vector<vector<Point> > contours;
+    findContours(img_contours,
+                 contours,               // a vector of contours
+                 CV_RETR_LIST,       // retrieve all contours
+                 CV_CHAIN_APPROX_NONE);  // all pixels of each contours
+    Mat sepertate_im(thres_window.size(),thres_window.depth(),Scalar(255));
+    drawContours(sepertate_im,contours,-1,Scalar(0),2);
+#ifdef DEBUG
+    while(1)
+    {
+      imshow("sepertate_im", sepertate_im);
+      if(char(cvWaitKey(15))==27)break;
+    }
+#endif
+
+
+    ////rebuild src image
+
+    Mat rebuilt_src(spineGray.size(),spineGray.depth(),Scalar(0));
+    for(int i=0;i<rebuilt_src.rows;i++)
+    {
+        for(int j=0;j<rebuilt_src.cols;j++)
+        {
+           Point pt;
+           pt.x = j;
+           pt.y = i;
+           int inner = 0;
+
+           for(vector<vector<Point> >::iterator itc = contours.begin();itc != contours.end();itc++)
+           {
+               int result = pointPolygonTest(*itc,pt,false);
+               if(result==1)
+               {
+                   inner++;
+               }
+               else if(result==0)
+               {
+                   rebuilt_src.at<uchar>(i,j) = 255;
+               }
+
+           }
+           if(inner==2)
+               rebuilt_src.at<uchar>(i,j) = 255;
+        }
+    }
+
+    spineGray = rebuilt_src;
+
+#ifdef DEBUG
+    while(1)
+    {
+      imshow("rebuilt_src", rebuilt_src);
+      if(char(cvWaitKey(15))==27)break;
+    }
+#endif
+
+
+#ifdef DEBUG
+    thres_window.release();
+    cvDestroyWindow("rebuilt_src");
+    cvDestroyWindow("sepertate_im");
+#endif
+}
+
+
+
+//segment the spine text
+void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_vec, vector<Rect> vecContoRect,int im_num, bool save)
+{
+    srand((unsigned)time(NULL));
+    ////set parameters
+//    int char_size;
+//#ifdef DEBUG
+//    printf("please input char size: big is 1, mediate is 2, small is 3\n");
+//    scanf("%d",&char_size);
+//#endif
+//    setMorParameters(char_size);
+//    int char_color;
+//#ifdef DEBUG
+//    printf("please input char size: white is 1, black is 2\n");
+//    scanf(" %d",&char_color);
+//#endif
+//    setThreParameters(char_color);
+//#ifdef DEBUG
+//    std::cout<<"char_size = "<<char_size<<","<<"char_color = "<<char_color<<std::endl;
+//#endif
+
+
+    ////gauss smoothing
+    int m_GaussianBlurSize = 5;
+    Mat mat_blur;
+    GaussianBlur(spineGray, mat_blur, Size(m_GaussianBlurSize, m_GaussianBlurSize), 0, 0, BORDER_DEFAULT);
+//#ifdef DEBUG
+//    while(1)
+//    {
+//      imshow("src_gauss", mat_blur);
+//      if(char(cvWaitKey(15))==27)break;
+//    }
+//#endif
+
+    ////histequal and sharpen
+    Mat spineGrayTemp = mat_blur - 0.5;
+    cv::Mat spineAhe;
+    adaptiveHistEqual(spineGrayTemp, spineAhe, 0.01);
+    cv::Mat spineShrpen;
+    sharpenImage(spineAhe, spineShrpen);
+//#ifdef DEBUG
+//    while(1)
+//    {
+//      imshow("sharpen", spineShrpen);
+//      if(char(cvWaitKey(15))==27)break;
+//    }
+//#endif
+
+    ////threshold
+    cv::Mat thresh_src;
+    threshold(spineShrpen, thresh_src, 0, 255, THRESH_OTSU+ CV_THRESH_BINARY);
+    cv::Mat idx;
+    findNonZero(thresh_src, idx);
+    int one_count = (int)idx.total();
+    float one_percent = (float)one_count/(float)thresh_src.total();
+    std::cout<<"one_percent = "<<one_percent<<std::endl;
+    if(one_percent>0.6)
+    {
+        inv_bin = true;
+    }
+    else
+    {
+        inv_bin = false;
+    }
+
+    cv::Mat thresh_src_temp;
+    if(inv_bin)
+    {
+        threshold(spineShrpen, thresh_src_temp, 0, 255, THRESH_OTSU+ CV_THRESH_BINARY_INV);
+        thresh_src = thresh_src_temp;
+    }
+
+    while(1)
+    {
+      imshow("window_thresh", thresh_src);
+      if(char(cvWaitKey(15))==27)break;
+    }
 
     ////morphological open
     Mat element_src = getStructuringElement(MORPH_RECT, src_open_val);
     Mat open_src;
     morphologyEx(thresh_src,open_src,MORPH_OPEN,element_src);
-#ifdef DEBUG
-    while(1)
-    {
-      imshow("open_src", open_src);
-      if(char(cvWaitKey(15))==27)break;
-    }
-#endif
+//#ifdef DEBUG
+//    while(1)
+//    {
+//      imshow("open_src", open_src);
+//      if(char(cvWaitKey(15))==27)break;
+//    }
+//#endif
 //    cv::Mat thres_window = open_src.clone();
     cv::Mat thres_window = thresh_src.clone();
 
@@ -594,68 +717,68 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 //    }
 //#endif
 
-    ////find contours
-    Mat img_contours;
-    thres_window.copyTo(img_contours);
-    vector<vector<Point> > contours;
-    findContours(img_contours,
-                 contours,               // a vector of contours
-                 CV_RETR_EXTERNAL,       // retrieve the external contours
-                 CV_CHAIN_APPROX_NONE);  // all pixels of each contours
-    Mat sepertate_im(thres_window.size(),thres_window.depth(),Scalar(255));
-    drawContours(sepertate_im,contours,-1,Scalar(0),2);
-#ifdef DEBUG
-    while(1)
-    {
-      imshow("sepertate_im",sepertate_im);
-      if(char(cvWaitKey(15))==27)break;
-    }
-#endif
+//    ////find contours
+//    Mat img_contours;
+//    thres_window.copyTo(img_contours);
+//    vector<vector<Point> > contours;
+//    findContours(img_contours,
+//                 contours,               // a vector of contours
+//                 CV_RETR_EXTERNAL,       // retrieve the external contours
+//                 CV_CHAIN_APPROX_NONE);  // all pixels of each contours
+//    Mat sepertate_im(thres_window.size(),thres_window.depth(),Scalar(255));
+//    drawContours(sepertate_im,contours,-1,Scalar(0),2);
+//#ifdef DEBUG
+//    while(1)
+//    {
+//      imshow("sepertate_im",sepertate_im);
+//      if(char(cvWaitKey(15))==27)break;
+//    }
+//#endif
 
 
-    ////detect contous neiboughbour
-    vector<vector<Point> >::iterator itc = contours.begin();
-    vector<vector<Point> >::iterator itc_next = contours.begin();
-    int contours_num_a = 0;
-    int contours_num_b = 0;
-    while (itc != contours.end())
-    {
-        contours_num_a++;
-        itc_next = itc;
-        itc_next++;
-        Point p_a;
-        Point p_b;
-        float min_distance = 200;
-        while(itc_next != contours.end())
-        {
-            vector<Point> contoursA = *itc;
-            vector<Point> contoursB = *itc_next;
-            min_distance = findShortestDistance(contoursA,contoursB,p_a,p_b);
-//            std::cout<<"min_distance = "<<min_distance<<std::endl;
-//            std::cout<<"p_a = ("<<p_a.x<<","<<p_a.y<<")"<<std::endl;
-//            std::cout<<"p_b = ("<<p_b.x<<","<<p_b.y<<")"<<std::endl;
-            if(min_distance < 10)
-            {
-                line(thres_window, p_a, p_b, Scalar(255, 0, 0), 10);
-            }
-            itc_next++;
-            contours_num_b++;
-        }
-      ++itc;
-    }
-#ifdef DEBUG
-    while(1)
-    {
-      imshow("thres_window", thres_window);
-      if(char(cvWaitKey(15))==27)break;
-    }
-#endif
+//    ////detect contous neiboughbour
+//    vector<vector<Point> >::iterator itc = contours.begin();
+//    vector<vector<Point> >::iterator itc_next = contours.begin();
+//    int contours_num_a = 0;
+//    int contours_num_b = 0;
+//    while (itc != contours.end())
+//    {
+//        contours_num_a++;
+//        itc_next = itc;
+//        itc_next++;
+//        Point p_a;
+//        Point p_b;
+//        float min_distance = 200;
+//        while(itc_next != contours.end())
+//        {
+//            vector<Point> contoursA = *itc;
+//            vector<Point> contoursB = *itc_next;
+//            min_distance = findShortestDistance(contoursA,contoursB,p_a,p_b);
+////            std::cout<<"min_distance = "<<min_distance<<std::endl;
+////            std::cout<<"p_a = ("<<p_a.x<<","<<p_a.y<<")"<<std::endl;
+////            std::cout<<"p_b = ("<<p_b.x<<","<<p_b.y<<")"<<std::endl;
+//            if(min_distance < 10)
+//            {
+//                line(thres_window, p_a, p_b, Scalar(255, 0, 0), 10);
+//            }
+//            itc_next++;
+//            contours_num_b++;
+//        }
+//      ++itc;
+//    }
+//#ifdef DEBUG
+//    while(1)
+//    {
+//      imshow("thres_window", thres_window);
+//      if(char(cvWaitKey(15))==27)break;
+//    }
+//#endif
 
 
 
 //    ////remove noise
 //    vector<vector<Point> >::iterator itc = contours.begin();
-//    vector<Rect> vecRect;
+    vector<Rect> vecRect;
 //    cv::Mat rectangle_show = thres_window.clone();
 //    while (itc != contours.end())
 //    {
@@ -673,28 +796,29 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 //    }
 //#endif
 
-//    ////save single char image after segment
-//    for(int char_num=0;char_num<vecRect.size();char_num++)
-//    {
-//         Mat single_char_=thres_window(vecRect.at(char_num));
-//         Mat single_char;
-//         single_char = preprocessChar(single_char_);
-//         single_char_vec.push_back(single_char);
-//        if(save)
-//        {
-//            const char* single_char_folder_ = "../../../src/easyocr/char_img";
-//            std::stringstream ss(std::stringstream::in | std::stringstream::out);
-//            ss << single_char_folder_ << "/" << im_num << "_src" << char_num<<"_"<<rand()<< ".jpg";
-//            imwrite(ss.str(),single_char);
-//        }
-//#ifdef DEBUG
-//        while(1)
-//        {
-//          imshow( "single_char", single_char_ );
-//          if(char(cvWaitKey(15))==27)break;
-//        }
-//#endif
-//    }
+    ////save single char image after segment
+    vecRect = vecContoRect;
+    for(int char_num=0;char_num<vecRect.size();char_num++)
+    {
+         Mat single_char_=thres_window(vecRect.at(char_num));
+         Mat single_char;
+         single_char = preprocessChar(single_char_);
+         single_char_vec.push_back(single_char);
+        if(save)
+        {
+            const char* single_char_folder_ = "../../../src/easyocr/char_img";
+            std::stringstream ss(std::stringstream::in | std::stringstream::out);
+            ss << single_char_folder_ << "/" << im_num << "_src" << char_num<<"_"<<rand()<< ".jpg";
+            imwrite(ss.str(),single_char);
+        }
+#ifdef DEBUG
+        while(1)
+        {
+          imshow( "single_char", single_char_ );
+          if(char(cvWaitKey(15))==27)break;
+        }
+#endif
+    }
 
 #ifdef DEBUG
     thres_window.release();
@@ -710,7 +834,7 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 #endif
 }
 
-void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_vec, int im_num, bool save)
+void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_vec, vector<Rect> &vecRect, int im_num, bool save)
 {
     int char_size;
 #ifdef DEBUG
@@ -750,8 +874,8 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     double threshold_value = 150;
 //    std::cout<<" threshold_value "<<maxVal<<std::endl;
     cv::Mat window_tmp;
-//    threshold(src_sobel, window_tmp, 0, 255, THRESH_OTSU+ CV_THRESH_BINARY);
-    threshold(src_sobel, window_tmp, threshold_value, 255, CV_THRESH_BINARY);
+    threshold(src_sobel, window_tmp, 0, 255, THRESH_OTSU+ CV_THRESH_BINARY);
+//    threshold(src_sobel, window_tmp, threshold_value, 255, CV_THRESH_BINARY);
 //    adaptiveThreshold(spineShrpen, window_tmp,255,CV_ADAPTIVE_THRESH_GAUSSIAN_C,CV_THRESH_BINARY, 5, 0);
 //    std::cout<<window_tmp<<std::endl;
     while(1)
@@ -769,18 +893,6 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
       if(char(cvWaitKey(15))==27)break;
     }
     cv::Mat thres_window = open_sob.clone();
-
-//    //进行close操作
-//    Mat elementDilate = getStructuringElement(MORPH_RECT, Size(5, 15));
-//    Mat elementErode = getStructuringElement(MORPH_RECT, Size(5, 5));
-//    Mat dilate_out,erode_out;
-//    morphologyEx(thres_window,dilate_out,MORPH_DILATE,elementDilate);
-//    morphologyEx(dilate_out,erode_out,MORPH_ERODE,elementErode);
-//    while(1)
-//    {
-//      imshow("erode_out", erode_out);
-//      if(char(cvWaitKey(15))==27)break;
-//    }
 
 
     ////find contours
@@ -800,15 +912,72 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     }
 
 
+//    //    vector<vector<Point> >::iterator itc = contours.begin();
+//        vector<Rect> vecRect;
+//    //    cv::Mat rectangle_show = thres_window.clone();
+//    //    while (itc != contours.end())
+//    //    {
+//    //      Rect mr = boundingRect(Mat(*itc));
+//    //      Mat auxRoi(thres_window, mr);
+//    //      if (/*verifyCharSizes(auxRoi)*/1) vecRect.push_back(mr);
+//    //      ++itc;
+//    //      rectangle(rectangle_show, mr, Scalar(255, 0, 0), 3);
+//    //    }
+
+    ////remove isolate contours
     Mat sepertate_im_remove(thres_window.size(),thres_window.depth(),Scalar(255));
+    //移除过长或过短的轮廓
+    int cmin = 1; //最小轮廓长度
+    int cmax = 600;    //最大轮廓
+    vector<vector<Point>>::iterator itc_mm = contours.begin();
+    while (itc_mm!=contours.end())
+    {
+        if (itc_mm->size() < cmin || itc_mm->size() > cmax)
+        {
+           itc_mm = contours.erase(itc_mm);
+        }
+        else
+            ++itc_mm;
+    }
     removeIsoContour(contours);
-    std::cout<<"it is ok!!!!"<<std::endl;
     drawContours(sepertate_im_remove,contours,-1,Scalar(0),2);
     while(1)
     {
       imshow("sepertate_im_remove",sepertate_im_remove);
       if(char(cvWaitKey(15))==27)break;
     }
+
+
+
+//    ////rebuild src image
+////    Mat rebuildSrc(spineGray.size(),spineGray.depth(),Scalar(0));
+//    vector<Point2d>  centers;    //轮廓质心坐标
+//    Point2d center;
+//    Moments mom; // 轮廓矩
+//    vector<vector<Point> >::iterator itr = contours.begin();
+//    while(itr!=contours.end())
+//    {
+//       //计算质心
+//       mom = moments(*itr);
+//       center.x = (int)(mom.m10/mom.m00);
+//       center.y = (int)(mom.m01/mom.m00);
+//       centers.push_back(center);
+//       itr++;
+//    }
+//    /*漫水填充连通区域*/
+//    Point2d seed;
+//    vector<Point2d>::iterator  itrc;    //质心坐标迭代器
+//    itrc = centers.begin();
+//    int new_scalar = 255;
+//    int loDiff = 8, upDiff = 8;
+//    int connectivity = 4;
+//    while(itrc!=centers.end())
+//    {
+//         seed = *itrc;
+//         floodFill(spineGray,seed,Scalar::all(new_scalar),NULL,
+//          Scalar::all(loDiff),Scalar::all(upDiff),connectivity);
+//         itrc++;
+//    }
 
 
     ////detect contous neiboughbour
@@ -862,6 +1031,7 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
                  contours_again,               // a vector of contours
                  CV_RETR_EXTERNAL,       // retrieve the external contours
                  CV_CHAIN_APPROX_NONE);  // all pixels of each contours
+    removeIsoContour(contours_again);    //remove isolate contours again
     Mat sepertate_im_again(thres_window.size(),thres_window.depth(),Scalar(255));
     drawContours(sepertate_im_again,contours_again,-1,Scalar(0),2);
     while(1)
@@ -871,7 +1041,7 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     }
 
     vector<vector<Point> >::iterator itc_again = contours_again.begin();
-    vector<Rect> vecRect;
+//    vector<Rect> vecRect;
     while (itc_again != contours_again.end())
     {
       Rect mr = boundingRect(Mat(*itc_again));
@@ -880,24 +1050,26 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
       ++itc_again;
     }
 
-    ////save single char image after segment
-    for(int char_num=0;char_num<vecRect.size();char_num++)
-    {
-         Mat single_char=thres_window(vecRect.at(char_num));
-         single_char_vec.push_back(single_char);
-        if(save)
-        {
-            const char* single_char_folder_ = "../../../src/easyocr/char_img";
-            std::stringstream ss(std::stringstream::in | std::stringstream::out);
-            ss << single_char_folder_ << "/" << im_num << "_sob" << char_num << ".jpg";
-            imwrite(ss.str(),single_char);
-        }
-        while(1)
-        {
-          imshow( "single_char", single_char );
-          if(char(cvWaitKey(15))==27)break;
-        }
-    }
+
+
+//    ////save single char image after segment
+//    for(int char_num=0;char_num<vecRect.size();char_num++)
+//    {
+//         Mat single_char=thres_window(vecRect.at(char_num));
+//         single_char_vec.push_back(single_char);
+//        if(save)
+//        {
+//            const char* single_char_folder_ = "../../../src/easyocr/char_img";
+//            std::stringstream ss(std::stringstream::in | std::stringstream::out);
+//            ss << single_char_folder_ << "/" << im_num << "_sob" << char_num << ".jpg";
+//            imwrite(ss.str(),single_char);
+//        }
+//        while(1)
+//        {
+//          imshow( "single_char", single_char );
+//          if(char(cvWaitKey(15))==27)break;
+//        }
+//    }
 
 
     thres_window.release();

@@ -147,9 +147,15 @@ Mat charFeatures(Mat in, int sizeData) {
   const int HORIZONTAL = 1;
 
   // cut the cetner, will afect 5% perices.
-//  Rect _rect = GetCenterRect(in);
-//  Mat tmpIn = CutTheRect(in, _rect);
-  Mat tmpIn = in.clone();
+  Rect _rect = GetCenterRect(in);
+  Mat tmpIn = CutTheRect(in, _rect);
+//  Mat tmpIn = in.clone();
+  while(1)
+  {
+    imshow("CutTheRect", tmpIn);
+    if(char(cvWaitKey(15))==27)break;
+  }
+  cvDestroyWindow("CutTheRect");
 
   // Low data feature
   Mat lowData;

@@ -168,10 +168,13 @@ int CollectPic::imgCollect()
         vector<Mat> single_char_vec;
         single_char_vec.clear();
         int char_mat_height,char_mat_width;
+        vector<Rect> vecContoRect;
 //        detector.segmentSrcSlide(ocr_piece, single_char_vec,char_width,char_height,0,true,char_mat_height,char_mat_width);
 //        Mat single_char_precise(char_mat_height,char_mat_width, CV_8UC1);
 //        detector.segmentSrcMor(ocr_piece, single_char_vec,im_num,true);
-        detector.segmentSobMor(ocr_piece, single_char_vec,im_num,false);
+//        detector.segmentSrcPre(ocr_piece);
+        detector.segmentSobMor(ocr_piece, single_char_vec,vecContoRect,im_num,false);
+        detector.segmentSrcMor(ocr_piece, single_char_vec,vecContoRect,im_num,false);
     }
 
     return 0;

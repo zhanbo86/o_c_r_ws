@@ -42,8 +42,9 @@ class TextDetector{
 public:
     TextDetector();
 //    TextDetector(TextDetecorParams &params, std::string imgDir = "");
-    void segmentSobMor(cv::Mat &spineImage, vector<Mat> &single_char_vec, int im_num, bool save);
-    void segmentSrcMor(cv::Mat &spineImage, vector<Mat> &single_char_vec, int im_num, bool save);
+    void segmentSobMor(cv::Mat &spineImage, vector<Mat> &single_char_vec, vector<Rect> &vecRect, int im_num, bool save);
+    void segmentSrcMor(cv::Mat &spineImage, vector<Mat> &single_char_vec, vector<Rect> vecContoRect, int im_num, bool save);
+    void segmentSrcPre(cv::Mat &spineImage);
     void segmentSrcSlide(cv::Mat &spineImage, vector<Mat> &single_char_vec, int char_width, int char_height, int im_num, bool save, int &char_mat_height, int &char_mat_width);
 protected:
     //pre-processing

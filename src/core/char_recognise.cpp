@@ -78,7 +78,7 @@ int CharRecog::charRecognise()
     capture_1 = false;
 
     //// Load image and resize to 1280*1024,source img is 2448*2048
-    Mat im = imread("/home/zb/BoZhan/ocr_ws/0104PCB/6.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_ANYCOLOR);
+    Mat im = imread("/home/zb/BoZhan/ocr_ws/0104PCB/5.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_ANYCOLOR);
     Size low_res = cv::Size((int)(im.size().width/2),(int)(im.size().height/2));
     Mat img_100(low_res,im.depth(),1);
     if (im.empty())
@@ -123,25 +123,25 @@ int CharRecog::charRecognise()
     }
 
     ////choice char width and height
-    num_p_1 = 0;
-    x_int_1 = 0;
-    y_int_1 = 0;
-    capture_1 = false;
-    imshow( "pick_ocr", ocr_piece );
-    cvSetMouseCallback("pick_ocr",my_mouse_callback_1,NULL);
-    while(num_p_1!=4)
-    {
-      imshow( "pick_ocr", ocr_piece );
-      if(char(cvWaitKey(15))==27)break;
-    }
+//    num_p_1 = 0;
+//    x_int_1 = 0;
+//    y_int_1 = 0;
+//    capture_1 = false;
+//    imshow( "pick_ocr", ocr_piece );
+//    cvSetMouseCallback("pick_ocr",my_mouse_callback_1,NULL);
+//    while(num_p_1!=4)
+//    {
+//      imshow( "pick_ocr", ocr_piece );
+//      if(char(cvWaitKey(15))==27)break;
+//    }
 
-    int char_width = 0;
-    int char_height = 0;
-    if(num_p_1==4)
-    {
-      char_width = x_temp_1[1] - x_temp_1[0];
-      char_height = y_temp_1[2] - y_temp_1[1];
-    }
+//    int char_width = 0;
+//    int char_height = 0;
+//    if(num_p_1==4)
+//    {
+//      char_width = x_temp_1[1] - x_temp_1[0];
+//      char_height = y_temp_1[2] - y_temp_1[1];
+//    }
     cvDestroyWindow("source");
     cvDestroyWindow("pick_ocr");
 
@@ -153,10 +153,12 @@ int CharRecog::charRecognise()
     single_char_vec.clear();
     int char_mat_height = 0;
     int char_mat_width = 0;
+    vector<Rect> vecContoRect;
 //    detector.segmentSrcSlide(ocr_piece, single_char_vec,char_width,char_height,0,true,char_mat_height,char_mat_width);
 //    Mat single_char_precise(char_mat_height,char_mat_width, CV_8UC1);
-//    detector.segmentSrcMor(ocr_piece, single_char_vec,0,false);
-    detector.segmentSobMor(ocr_piece, single_char_vec,0,false);
+//    detector.segmentSrcPre(ocr_piece);
+    detector.segmentSobMor(ocr_piece, single_char_vec,vecContoRect,0,false);
+    detector.segmentSrcMor(ocr_piece, single_char_vec,vecContoRect,0,false);
 //    std::cout<<"ocr_piece_size = "<<ocr_piece.rows<<" * "<<ocr_piece.cols<<std::endl;
 //    std::cout<<"char_width = "<<char_width<<" , "<<"char_height = "<<char_height<<std::endl;
 //    std::cout<<"single_char_amount = "<<single_char_vec.size()<<std::endl;
