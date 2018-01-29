@@ -60,6 +60,8 @@ protected:
     void setThreParameters(int char_color);
     int slidingWnd(Mat& src, vector<Mat>& wnd, Size wndSize, double x_percent, double y_percent, int &char_mat_height, int &char_mat_width);
     float findShortestDistance(vector<Point> &contoursA_, vector<Point> &contoursB_, Point &p_a, Point &p_b);
+    void removeIsoContour(vector<vector<Point> > &contours);
+    Rect rectCenterScale(Rect rect, Size size);
 private:
 //    string imageDirectory;
     double NaN = nan("not a number");
@@ -74,6 +76,7 @@ private:
     static const int CHAR_SIZE = 20;
     Size src_open_val,src_dilate_val,src_erode_val;
     bool inv_bin = false;
+    float connect_dis = 8;
 };  /*  class TextDetector */
 
 

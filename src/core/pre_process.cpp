@@ -185,22 +185,26 @@ void TextDetector::setMorParameters(int char_size)
            src_open_val = Size(5, 5);
            src_dilate_val = Size(10, 20);
            src_erode_val = Size(5, 5);
+           connect_dis = 8;
         break;
         case MEDCHAR:
             src_open_val = Size(5, 5);
             src_dilate_val = Size(5, 13);
             src_erode_val = Size(5, 5);
+            connect_dis = 3;
         break;
         case SMALLCHAR:
             src_open_val = Size(3, 5);
             src_dilate_val = Size(1, 8);
             src_erode_val = Size(1, 5);
+            connect_dis = 2;
         break;
         default:
            std::cout<<"char size input is wrong!!! use default big char parameters."<<std::endl;
            src_open_val = Size(5, 5);
            src_dilate_val = Size(5, 20);
            src_erode_val = Size(5, 5);
+           connect_dis = 8;
         break;
     }
 }
@@ -279,6 +283,64 @@ int TextDetector::slidingWnd(Mat& src, vector<Mat>& wnd,Size wndSize, double x_p
     return count;
 }
 
+Rect TextDetector::rectCenterScale(Rect rect, Size size)
+{
+    rect = rect + size;
+    Point pt;
+    pt.x = cvRound(size.width/2.0);
+    pt.y = cvRound(size.height/2.0);
+    return (rect-pt);
+}
+
+
+void TextDetector::removeIsoContour(vector<vector<Point> > &contours)
+{
+    ////detect contous neiboughbour
+    vector<vector<Point> >::iterator itc = contours.begin();
+    vector<vector<Point> >::iterator itc2 = contours.begin();
+    vector<vector<Point> >::iterator itc_next = contours.begin();
+    while (itc != contours.end())
+    {
+        Rect mr = boundingRect(Mat(*itc));
+        Rect mr_3zoom = rectCenterScale(mr,Size(4*mr.width,4*mr.height));
+
+        Mat sepertate_1(Size(500,400),CV_8UC1,Scalar(0));
+        rectangle(sepertate_1, mr, Scalar(255, 0, 0), 3);
+        Mat sepertate_2(Size(500,400),CV_8UC1,Scalar(0));
+        rectangle(sepertate_2, mr_3zoom, Scalar(255, 0, 0), 3);
+        itc_next = contours.begin();
+        long int mr_cross_acc_width = 0;
+        long int mr_cross_acc_height = 0;
+        while(itc_next != contours.end())
+        {
+            if(itc_next==itc)
+            {
+                itc_next++;
+                continue;
+            }
+            Rect mr_next = boundingRect(Mat(*itc_next));
+            Rect mr_cross = mr_3zoom&mr_next;
+            mr_cross_acc_width += mr_cross.width;
+            mr_cross_acc_height += mr_cross.height;
+            itc_next++;
+            rectangle(sepertate_2, mr_next, Scalar(255, 0, 0), 3);
+            if((mr_cross_acc_height!=0)||(mr_cross_acc_width!=0))
+            {
+                break;
+            }
+        }
+        if((mr_cross_acc_width==0)&&(mr_cross_acc_height==0))
+        {
+            itc2 = contours.erase(itc);
+            itc = itc2;
+            std::cout<<"erase this contour!!!"<<std::endl;
+        }
+        else
+        {
+            ++itc;
+        }
+    }
+}
 
 float TextDetector::findShortestDistance(vector<Point> &contoursA_, vector<Point> &contoursB_, Point &p_a, Point &p_b)
 {
@@ -650,10 +712,17 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 
 void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_vec, int im_num, bool save)
 {
+    int char_size;
+#ifdef DEBUG
+    printf("please input char size: big is 1, mediate is 2, small is 3\n");
+    scanf("%d",&char_size);
+#endif
+    setMorParameters(char_size);
+
+    ////histequal and shrpen
     Mat spineGrayTemp = spineGray - 0.5;
     cv::Mat spineAhe;
     adaptiveHistEqual(spineGrayTemp, spineAhe, 0.01);
-
     cv::Mat spineShrpen;
     sharpenImage(spineAhe, spineShrpen);
     while(1)
@@ -662,6 +731,8 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
       if(char(cvWaitKey(15))==27)break;
     }
 
+
+    ////soble
     cv::Mat src_sobel;
     int m_GaussianBlurSize = 5;
     sobelOper(spineShrpen, src_sobel, m_GaussianBlurSize);
@@ -671,6 +742,7 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
       if(char(cvWaitKey(15))==27)break;
     }
 
+    ////threshold
 //    double minVal,maxVal;
 //    Point minLoc,maxLoc;
 //    minMaxLoc(src_sobel,&minVal,&maxVal,&minLoc,&maxLoc);
@@ -687,7 +759,7 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
       imshow("window_thresh", window_tmp);
       if(char(cvWaitKey(15))==27)break;
     }
-    //进行open操作
+    ////进行open操作
     Mat element_sob = getStructuringElement(MORPH_RECT, Size(2, 2));
     Mat open_sob;
     morphologyEx(window_tmp,open_sob,MORPH_OPEN,element_sob);
@@ -710,11 +782,11 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 //      if(char(cvWaitKey(15))==27)break;
 //    }
 
+
+    ////find contours
     Mat img_contours;
     thres_window.copyTo(img_contours);
     vector<vector<Point> > contours;
-    vector<vector<Point> > contours_temp;
-    contours_temp.clear();
     findContours(img_contours,
                  contours,               // a vector of contours
                  CV_RETR_EXTERNAL,       // retrieve the external contours
@@ -726,21 +798,20 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
       imshow("sepertate_im",sepertate_im);
       if(char(cvWaitKey(15))==27)break;
     }
-//    for(int i=0;i<contours.size();i++)
-//    {
-//        contours_temp.push_back(contours.at(i));
-//        drawContours(sepertate_im,contours_temp,-1,Scalar(0),2);
-//        while(1)
-//        {
-//          imshow("sepertate_im",sepertate_im);
-//          if(char(cvWaitKey(15))==27)break;
-//        }
-//        cvDestroyWindow("sepertate_im");
-//    }
+
+
+    Mat sepertate_im_remove(thres_window.size(),thres_window.depth(),Scalar(255));
+    removeIsoContour(contours);
+    std::cout<<"it is ok!!!!"<<std::endl;
+    drawContours(sepertate_im_remove,contours,-1,Scalar(0),2);
+    while(1)
+    {
+      imshow("sepertate_im_remove",sepertate_im_remove);
+      if(char(cvWaitKey(15))==27)break;
+    }
 
 
     ////detect contous neiboughbour
-    std::cout<<"it is ok!!!!"<<std::endl;
     vector<vector<Point> >::iterator itc = contours.begin();
     vector<vector<Point> >::iterator itc_next = contours.begin();
     int contours_num_a = 0;
@@ -762,10 +833,13 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 //            std::cout<<"min_distance = "<<min_distance<<std::endl;
 //            std::cout<<"p_a = ("<<p_a.x<<","<<p_a.y<<")"<<std::endl;
 //            std::cout<<"p_b = ("<<p_b.x<<","<<p_b.y<<")"<<std::endl;
-            threshold_distance = 10*(1+abs((float)(p_b.y-p_a.y))/min_distance);
+            if(min_distance!=0)
+            {
+                threshold_distance = connect_dis*(1+1.2*pow(abs((float)(p_b.y-p_a.y))/min_distance,2));
+            }
             if(min_distance < threshold_distance)
             {
-                line(thres_window, p_a, p_b, Scalar(255, 0, 0), 10);
+                line(thres_window, p_a, p_b, Scalar(255, 0, 0), 3);
             }
             itc_next++;
             contours_num_b++;
@@ -826,14 +900,17 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     }
 
 
-//    thres_window.release();
-//    cvDestroyWindow("sharpen");
-//    cvDestroyWindow("src_sobel");
-//    cvDestroyWindow("open_sob");
-//    cvDestroyWindow("thres_window");
-//    cvDestroyWindow("erode_out");
-//    cvDestroyWindow("sepertate_im");
-//    cvDestroyWindow("single_char");
+    thres_window.release();
+    cvDestroyWindow("sharpen");
+    cvDestroyWindow("src_sobel");
+    cvDestroyWindow("open_sob");
+    cvDestroyWindow("thres_window");
+    cvDestroyWindow("erode_out");
+    cvDestroyWindow("sepertate_im");
+    cvDestroyWindow("sepertate_im_again");
+    cvDestroyWindow("single_char");
+    cvDestroyWindow("window_thresh");
+
 }
 
 
