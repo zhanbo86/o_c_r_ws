@@ -30,7 +30,7 @@ int main(int argc, const char* argv[])
         case 2:
           std::cout << "Run \"demo ann\" for more usage." << std::endl;
           {
-            easyocr::AnnTrain ann("../../../src/easyocr/train_set/ann", "../../../src/easyocr/train_set/ann.xml");
+            easyocr::AnnTrain ann("../../../src/easyocr/train_set/char", "../../../src/easyocr/train_set/ann.xml");
             ann.train();
           }
           break;

@@ -86,6 +86,7 @@ protected:
     void draw_projection(vector<int>& pos, int mode);
     int GetPeekRange(vector<int> &vertical_pos, vector<char_range_t> &peek_range, int min_thresh, int min_range);
     int draw_main_row(vector<int>& pos,char_range_t &main_peek_rang_v);
+    void segmentRow(cv::Mat &open_src_in, cv::Mat &out, float gap);
 private:
 //    string imageDirectory;
     double NaN = nan("not a number");

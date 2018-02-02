@@ -75,7 +75,7 @@ void AnnTrain::train() {
   }
 
   //using raw data or raw + synthic data.
-  auto traindata = sdata(350);
+  auto traindata = sdata(150);
 
   std::cout << "Training ANN model, please wait..." << std::endl;
   long start = utils::getTimestamp();
