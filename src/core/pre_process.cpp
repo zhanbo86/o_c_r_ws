@@ -65,6 +65,172 @@ void TextDetector::adaptiveHistEqual(cv::Mat &src,cv::Mat &dst,double clipLimit)
     clahe->apply(src, dst);
 }
 
+//获取文本的投影以用于分割字符(垂直，水平),默认图片是黑底白色
+int TextDetector::GetTextProjection(Mat &src, vector<int>& pos, int mode)
+{
+    if (mode == H_PROJECT)
+    {
+        for (int i = 0; i < src.rows; i++)
+        {
+
+            for (int j = 0; j < src.cols; j++)
+            {
+                if (src.at<uchar>(i, j) == 255)
+                {
+                    pos[i]++;
+                }
+            }
+        }
+
+    }
+    else if (mode == V_PROJECT)
+    {
+        for (int i = 0; i < src.cols; i++)
+        {
+
+            for (int j = 0; j < src.rows; j++)
+            {
+                if (src.at<uchar>(j, i) == 255)
+                {
+                    pos[i]++;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+
+void TextDetector::draw_projection(vector<int>& pos,int mode)
+{
+    vector<int>::iterator max = std::max_element(std::begin(pos), std::end(pos)); //求最大值
+    if (mode == H_PROJECT)
+    {
+        int height = pos.size();
+        int width = *max;
+        Mat project;
+        project = Mat::zeros(height, width, CV_8UC1);
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < pos[i]; j++)
+            {
+                project.at<uchar>(i, j) = 255;
+            }
+//            std::cout<<"pos"<<i<<" = "<<pos[i]<<std::endl;
+
+        }
+        while(1)
+        {
+          imshow("horizational projection", project);
+          if(char(cvWaitKey(15))==27)break;
+        }
+        cvDestroyWindow("horizational projection");
+    }
+    else if (mode == V_PROJECT)
+    {
+        int height = *max;
+        int width = pos.size();
+        Mat project = Mat::zeros(height, width, CV_8UC1);
+        for (int i = 0; i < project.cols; i++)
+        {
+            for (int j = project.rows - 1; j >= project.rows - pos[i]; j--)
+            {
+                //std::cout << "j:" << j << "i:" << i << std::endl;
+                project.at<uchar>(j, i) = 255;
+            }
+        }
+        while(1)
+        {
+          imshow("verticle projection", project);
+          if(char(cvWaitKey(15))==27)break;
+        }
+        cvDestroyWindow("verticle projection");
+    }
+}
+
+
+int TextDetector::draw_main_row(vector<int>& pos,char_range_t &main_peek_rang_v)
+{
+    int height = pos.size();
+    int width = 10;
+    Mat project = Mat::zeros(height, width, CV_8UC1);
+    for (int i = 0; i < project.rows; i++)
+    {
+        if((i>=main_peek_rang_v.begin)&&(i<=main_peek_rang_v.end))
+        {
+            for (int j = 0; j <  project.cols; j++)
+            {
+                project.at<uchar>(i, j) = 255;
+            }
+        }
+
+    }
+    imshow("horizational main range projection", project);
+    waitKey();
+}
+
+
+int TextDetector::GetPeekRange(vector<int> &horizental_pos, vector<char_range_t> &peek_range, int min_thresh = 2, int min_range = 5)
+{
+    int begin = 0;
+    int end = 0;
+    std::cout<<"horizental_pos.size() = "<<horizental_pos.size()<<std::endl;
+    for (int i = 0; i < horizental_pos.size(); i++)
+    {
+        if (horizental_pos[i] > min_thresh && begin == 0)
+        {
+            begin = i;
+        }
+        else if (horizental_pos[i] > min_thresh && begin != 0)
+        {
+            if(i == (horizental_pos.size()-1))
+            {
+                end = horizental_pos.size()-1;
+                char_range_t tmp;
+                tmp.begin = begin;
+                tmp.end = end;
+                peek_range.push_back(tmp);
+                begin = 0;
+                end = 0;
+            }
+            else
+            {
+                continue;
+            }
+        }
+        else if (horizental_pos[i] < min_thresh && begin != 0)
+        {
+            end = i;
+            if (end - begin >= min_range)
+            {
+                char_range_t tmp;
+                tmp.begin = begin;
+                tmp.end = end;
+                peek_range.push_back(tmp);
+                begin = 0;
+                end = 0;
+            }
+            else
+            {
+                begin = 0;
+                end = 0;
+            }
+
+        }
+        else if (horizental_pos[i] < min_thresh || begin == 0)
+        {
+            continue;
+        }
+        else
+        {
+            //printf("raise error!\n");
+        }
+    }
+
+    return 0;
+}
+
 
 void TextDetector::sharpenImage(const cv::Mat &image, cv::Mat &result)
 {
@@ -128,29 +294,13 @@ int TextDetector::sobelOper(const Mat &in, Mat &out, int blurSize)
   Mat grad_x, grad_y;
   Mat abs_grad_x, abs_grad_y;
 
-
   Sobel(mat_gray, grad_x, ddepth, 1, 0, 3, scale, delta, BORDER_DEFAULT);
   convertScaleAbs(grad_x, abs_grad_x);
-
   Sobel(mat_gray, grad_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT);
   convertScaleAbs(grad_y, abs_grad_y);
-
   Mat grad;
   addWeighted(abs_grad_x, SOBEL_X_WEIGHT, abs_grad_y, SOBEL_X_WEIGHT, 0, grad);
-
   out = grad;
-
-//  Mat mat_threshold;
-//  double otsu_thresh_val =
-//      threshold(grad, mat_threshold, 0, 255, CV_THRESH_OTSU + CV_THRESH_BINARY);
-
-
-//  Mat element = getStructuringElement(MORPH_RECT, Size(morphW, morphH));
-//  morphologyEx(mat_threshold, mat_threshold, MORPH_CLOSE, element);
-
-//  out = mat_threshold;
-
-
   return 0;
 }
 
@@ -161,19 +311,15 @@ Mat TextDetector::preprocessChar(Mat in) {
   int w = in.cols;
 
   int charSize = CHAR_SIZE;
-
   Mat transformMat = Mat::eye(2, 3, CV_32F);
   int m = max(w, h);
   transformMat.at<float>(0, 2) = float(m / 2 - w / 2);
   transformMat.at<float>(1, 2) = float(m / 2 - h / 2);
-
   Mat warpImage(m, m, in.type());
   warpAffine(in, warpImage, transformMat, warpImage.size(), INTER_LINEAR,
              BORDER_CONSTANT, Scalar(0));
-
   Mat out;
   resize(warpImage, out, Size(charSize, charSize));
-
   return out;
 }
 
@@ -185,7 +331,7 @@ void TextDetector::setMorParameters(int char_size)
            src_open_val = Size(5, 5);
            src_dilate_val = Size(10, 20);
            src_erode_val = Size(5, 5);
-           connect_dis = 7;
+           connect_dis = 8;
         break;
         case MEDCHAR:
             src_open_val = Size(5, 5);
@@ -209,22 +355,6 @@ void TextDetector::setMorParameters(int char_size)
     }
 }
 
-void TextDetector::setThreParameters(int char_color)
-{
-    switch(char_color)
-    {
-        case WHITE:
-           inv_bin = false;
-        break;
-        case BLACK:
-           inv_bin = true;
-        break;
-        default:
-           std::cout<<"char color input is wrong!!! Use default white char set."<<std::endl;
-           inv_bin = false;
-        break;
-    }
-}
 
 int TextDetector::slidingWnd(Mat& src, vector<Mat>& wnd,Size wndSize, double x_percent, double y_percent,
                              int &char_mat_height,int &char_mat_width)
@@ -293,7 +423,7 @@ Rect TextDetector::rectCenterScale(Rect rect, Size size)
 }
 
 
-void TextDetector::removeIsoContour(vector<vector<Point> > &contours)
+void TextDetector::removeIsoContour(vector<vector<Point> > &contours,vector<vector<Point> > &contours_remove)
 {
     ////detect contous neiboughbour
     vector<vector<Point> >::iterator itc = contours.begin();
@@ -302,12 +432,7 @@ void TextDetector::removeIsoContour(vector<vector<Point> > &contours)
     while (itc != contours.end())
     {
         Rect mr = boundingRect(Mat(*itc));
-        Rect mr_3zoom = rectCenterScale(mr,Size(4*mr.width,4*mr.height));
-
-        Mat sepertate_1(Size(500,400),CV_8UC1,Scalar(0));
-        rectangle(sepertate_1, mr, Scalar(255, 0, 0), 3);
-        Mat sepertate_2(Size(500,400),CV_8UC1,Scalar(0));
-        rectangle(sepertate_2, mr_3zoom, Scalar(255, 0, 0), 3);
+        Rect mr_3zoom = rectCenterScale(mr,Size(9*mr.width,2*mr.height));
         itc_next = contours.begin();
         long int mr_cross_acc_width = 0;
         long int mr_cross_acc_height = 0;
@@ -323,7 +448,6 @@ void TextDetector::removeIsoContour(vector<vector<Point> > &contours)
             mr_cross_acc_width += mr_cross.width;
             mr_cross_acc_height += mr_cross.height;
             itc_next++;
-            rectangle(sepertate_2, mr_next, Scalar(255, 0, 0), 3);
             if((mr_cross_acc_height!=0)||(mr_cross_acc_width!=0))
             {
                 break;
@@ -331,6 +455,7 @@ void TextDetector::removeIsoContour(vector<vector<Point> > &contours)
         }
         if((mr_cross_acc_width==0)&&(mr_cross_acc_height==0))
         {
+            contours_remove.push_back(*itc);
             itc2 = contours.erase(itc);
             itc = itc2;
             std::cout<<"erase this contour!!!"<<std::endl;
@@ -376,24 +501,6 @@ void TextDetector::segmentSrcSlide(cv::Mat &spineGray, vector<Mat> &single_char_
                                    int &char_mat_height,int &char_mat_width)
 {
     srand((unsigned)time(NULL));
-    ////set parameters
-//    int char_size;
-//#ifdef DEBUG
-//    printf("please input char size: big is 1, mediate is 2, small is 3\n");
-//    scanf("%d",&char_size);
-//#endif
-//    setMorParameters(char_size);
-//    int char_color;
-//#ifdef DEBUG
-//    printf("please input char size: white is 1, black is 2\n");
-//    scanf(" %d",&char_color);
-//#endif
-//    setThreParameters(char_color);
-//#ifdef DEBUG
-//    std::cout<<"char_size = "<<char_size<<","<<"char_color = "<<char_color<<std::endl;
-//#endif
-
-
     ////gauss smoothing
     int m_GaussianBlurSize = 5;
     Mat mat_blur;
@@ -437,32 +544,6 @@ void TextDetector::segmentSrcSlide(cv::Mat &spineGray, vector<Mat> &single_char_
       if(char(cvWaitKey(15))==27)break;
     }
 #endif
-
-
-
-//    //// Pass it to Tesseract API
-//    tesseract::TessBaseAPI tess;
-//    tess.Init(NULL, "eng", tesseract::OEM_DEFAULT);
-////    tess.SetVariable("tessedit_char_whitelist", "0123456789");
-////    tess.SetVariable("classify_bln_numeric_mode", "1");
-////    tess.SetPageSegMode(tesseract::PSM_SINGLE_WORD);
-//    tess.SetImage((uchar*)thresh_src.data, thresh_src.cols, thresh_src.rows, thresh_src.channels(), thresh_src.cols);
-//    Boxa* boxes = tess.GetComponentImages(tesseract::RIL_TEXTLINE, true, NULL, NULL);
-//    printf("Found %d textline image components.\n", boxes->n);
-//    for (int i = 0; i < boxes->n; i++){
-//        BOX* box = boxaGetBox(boxes, i, L_CLONE);
-//        tess.SetRectangle(box->x, box->y, box->w, box->h);
-//        char* ocrResult = tess.GetUTF8Text();
-//        int conf = tess.MeanTextConf();
-//        fprintf(stdout, "Box[%d]: x=%d, y=%d, w=%d, h=%d, confidence: %d, text: %s",
-//            i, box->x, box->y, box->w, box->h, conf, ocrResult);
-//    }
-
-//    //// Get the text
-//    char* out = tess.GetUTF8Text();
-//    std::cout << out << std::endl;
-
-
 
     ////slide window in src
     vector<Mat> charWnd;
@@ -614,34 +695,18 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 {
     srand((unsigned)time(NULL));
     ////set parameters
-//    int char_size;
-//#ifdef DEBUG
-//    printf("please input char size: big is 1, mediate is 2, small is 3\n");
-//    scanf("%d",&char_size);
-//#endif
-//    setMorParameters(char_size);
-//    int char_color;
-//#ifdef DEBUG
-//    printf("please input char size: white is 1, black is 2\n");
-//    scanf(" %d",&char_color);
-//#endif
-//    setThreParameters(char_color);
-//#ifdef DEBUG
-//    std::cout<<"char_size = "<<char_size<<","<<"char_color = "<<char_color<<std::endl;
-//#endif
+    int char_size;
+#ifdef DEBUG
+    printf("please input char size: big is 1, mediate is 2, small is 3\n");
+    scanf("%d",&char_size);
+#endif
+    setMorParameters(char_size);
 
 
     ////gauss smoothing
     int m_GaussianBlurSize = 5;
     Mat mat_blur;
     GaussianBlur(spineGray, mat_blur, Size(m_GaussianBlurSize, m_GaussianBlurSize), 0, 0, BORDER_DEFAULT);
-//#ifdef DEBUG
-//    while(1)
-//    {
-//      imshow("src_gauss", mat_blur);
-//      if(char(cvWaitKey(15))==27)break;
-//    }
-//#endif
 
     ////histequal and sharpen
     Mat spineGrayTemp = mat_blur - 0.5;
@@ -649,13 +714,6 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     adaptiveHistEqual(spineGrayTemp, spineAhe, 0.01);
     cv::Mat spineShrpen;
     sharpenImage(spineAhe, spineShrpen);
-//#ifdef DEBUG
-//    while(1)
-//    {
-//      imshow("sharpen", spineShrpen);
-//      if(char(cvWaitKey(15))==27)break;
-//    }
-//#endif
 
     ////threshold
     cv::Mat thresh_src;
@@ -681,123 +739,127 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
         thresh_src = thresh_src_temp;
     }
 
-    while(1)
-    {
-      imshow("window_thresh", thresh_src);
-      if(char(cvWaitKey(15))==27)break;
-    }
+//    while(1)
+//    {
+//      imshow("window_thresh", thresh_src);
+//      if(char(cvWaitKey(15))==27)break;
+//    }
+
 
     ////morphological open
     Mat element_src = getStructuringElement(MORPH_RECT, src_open_val);
     Mat open_src;
     morphologyEx(thresh_src,open_src,MORPH_OPEN,element_src);
-//#ifdef DEBUG
-//    while(1)
-//    {
-//      imshow("open_src", open_src);
-//      if(char(cvWaitKey(15))==27)break;
-//    }
-//#endif
-//    cv::Mat thres_window = open_src.clone();
-    cv::Mat thres_window = thresh_src.clone();
+    cv::Mat thres_window = open_src.clone();
 
-
-//    //////morphological close
-//    Mat elementDilate = getStructuringElement(MORPH_RECT, src_dilate_val);
-//    Mat elementErode = getStructuringElement(MORPH_RECT, src_erode_val);
-//    Mat dilate_out,erode_out;
-//    morphologyEx(thres_window,dilate_out,MORPH_DILATE,elementDilate);
-//    morphologyEx(dilate_out,erode_out,MORPH_ERODE,elementErode);
-////    erode_out = dilate_out.clone();
-//#ifdef DEBUG
-//    while(1)
-//    {
-//      imshow("erode_out", erode_out);
-//      if(char(cvWaitKey(15))==27)break;
-//    }
-//#endif
-
-//    ////find contours
-//    Mat img_contours;
-//    thres_window.copyTo(img_contours);
-//    vector<vector<Point> > contours;
-//    findContours(img_contours,
-//                 contours,               // a vector of contours
-//                 CV_RETR_EXTERNAL,       // retrieve the external contours
-//                 CV_CHAIN_APPROX_NONE);  // all pixels of each contours
-//    Mat sepertate_im(thres_window.size(),thres_window.depth(),Scalar(255));
-//    drawContours(sepertate_im,contours,-1,Scalar(0),2);
-//#ifdef DEBUG
+    ////find contours
+    Mat img_contours;
+    thres_window.copyTo(img_contours);
+    vector<vector<Point> > contours;
+    findContours(img_contours,
+                 contours,               // a vector of contours
+                 CV_RETR_EXTERNAL,       // retrieve the external contours
+                 CV_CHAIN_APPROX_NONE);  // all pixels of each contours
+    Mat sepertate_im(thres_window.size(),thres_window.depth(),Scalar(255));
+    drawContours(sepertate_im,contours,-1,Scalar(0),2);
 //    while(1)
 //    {
 //      imshow("sepertate_im",sepertate_im);
 //      if(char(cvWaitKey(15))==27)break;
 //    }
-//#endif
 
-
-//    ////detect contous neiboughbour
-//    vector<vector<Point> >::iterator itc = contours.begin();
-//    vector<vector<Point> >::iterator itc_next = contours.begin();
-//    int contours_num_a = 0;
-//    int contours_num_b = 0;
-//    while (itc != contours.end())
-//    {
-//        contours_num_a++;
-//        itc_next = itc;
-//        itc_next++;
-//        Point p_a;
-//        Point p_b;
-//        float min_distance = 200;
-//        while(itc_next != contours.end())
-//        {
-//            vector<Point> contoursA = *itc;
-//            vector<Point> contoursB = *itc_next;
-//            min_distance = findShortestDistance(contoursA,contoursB,p_a,p_b);
-////            std::cout<<"min_distance = "<<min_distance<<std::endl;
-////            std::cout<<"p_a = ("<<p_a.x<<","<<p_a.y<<")"<<std::endl;
-////            std::cout<<"p_b = ("<<p_b.x<<","<<p_b.y<<")"<<std::endl;
-//            if(min_distance < 10)
-//            {
-//                line(thres_window, p_a, p_b, Scalar(255, 0, 0), 10);
-//            }
-//            itc_next++;
-//            contours_num_b++;
-//        }
-//      ++itc;
-//    }
-//#ifdef DEBUG
+    ////remove isolate contours
+    Mat sepertate_im_remove(thres_window.size(),thres_window.depth(),Scalar(255));
+    //移除过长或过短的轮廓
+    int cmin = 1; //最小轮廓长度
+    int cmax = 600;    //最大轮廓
+    vector<vector<Point>>::iterator itc_mm = contours.begin();
+    while (itc_mm!=contours.end())
+    {
+        if (itc_mm->size() < cmin || itc_mm->size() > cmax)
+        {
+           itc_mm = contours.erase(itc_mm);
+        }
+        else
+            ++itc_mm;
+    }
+//    removeIsoContour(contours);
+    drawContours(sepertate_im_remove,contours,-1,Scalar(0),2);
 //    while(1)
 //    {
-//      imshow("thres_window", thres_window);
+//      imshow("sepertate_im_remove",sepertate_im_remove);
 //      if(char(cvWaitKey(15))==27)break;
 //    }
-//#endif
 
+    ////detect contous neiboughbour
+    vector<vector<Point> >::iterator itc = contours.begin();
+    vector<vector<Point> >::iterator itc_next = contours.begin();
+    int contours_num_a = 0;
+    int contours_num_b = 0;
+    while (itc != contours.end())
+    {
+        contours_num_a++;
+        itc_next = itc;
+        itc_next++;
+        Point p_a;
+        Point p_b;
+        float min_distance = 200;
+        float threshold_distance;
+        while(itc_next != contours.end())
+        {
+            vector<Point> contoursA = *itc;
+            vector<Point> contoursB = *itc_next;
+            min_distance = findShortestDistance(contoursA,contoursB,p_a,p_b);
+            if(min_distance!=0)
+            {
+                threshold_distance = connect_dis*(1+2*pow(abs((float)(p_b.y-p_a.y))/min_distance,2));
+            }
+            if(min_distance < threshold_distance)
+            {
+                line(thres_window, p_a, p_b, Scalar(255, 0, 0), 3);
+            }
+            itc_next++;
+            contours_num_b++;
+        }
+      ++itc;
+    }
+#ifdef DEBUG
+    while(1)
+    {
+      imshow("thres_window", thres_window);
+      if(char(cvWaitKey(15))==27)break;
+    }
+#endif
 
+    ////find contours again
+    Mat img_contours_again;
+    thres_window.copyTo(img_contours_again);
+    vector<vector<Point> > contours_again;
+    findContours(img_contours_again,
+                 contours_again,               // a vector of contours
+                 CV_RETR_EXTERNAL,       // retrieve the external contours
+                 CV_CHAIN_APPROX_NONE);  // all pixels of each contours
+//    removeIsoContour(contours_again);    //remove isolate contours again
+    Mat sepertate_im_again(thres_window.size(),thres_window.depth(),Scalar(255));
+    drawContours(sepertate_im_again,contours_again,-1,Scalar(0),2);
+    while(1)
+    {
+      imshow("sepertate_im_again",sepertate_im_again);
+      if(char(cvWaitKey(15))==27)break;
+    }
 
-//    ////remove noise
-//    vector<vector<Point> >::iterator itc = contours.begin();
+    vector<vector<Point> >::iterator itc_again = contours_again.begin();
     vector<Rect> vecRect;
-//    cv::Mat rectangle_show = thres_window.clone();
-//    while (itc != contours.end())
-//    {
-//      Rect mr = boundingRect(Mat(*itc));
-//      Mat auxRoi(thres_window, mr);
-//      if (/*verifyCharSizes(auxRoi)*/1) vecRect.push_back(mr);
-//      ++itc;
-//      rectangle(rectangle_show, mr, Scalar(255, 0, 0), 3);
-//    }
-//#ifdef DEBUG
-//    while(1)
-//    {
-//      imshow("rectangle_show",rectangle_show);
-//      if(char(cvWaitKey(15))==27)break;
-//    }
-//#endif
+    while (itc_again != contours_again.end())
+    {
+      Rect mr = boundingRect(Mat(*itc_again));
+      Mat auxRoi(thres_window, mr);
+      if (/*verifyCharSizes(auxRoi)*/1) vecRect.push_back(mr);
+      ++itc_again;
+    }
+
 
     ////save single char image after segment
-    vecRect = vecContoRect;
     for(int char_num=0;char_num<vecRect.size();char_num++)
     {
          Mat single_char_=thres_window(vecRect.at(char_num));
@@ -822,15 +884,9 @@ void TextDetector::segmentSrcMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 
 #ifdef DEBUG
     thres_window.release();
-    cvDestroyWindow("sharpen");
-    cvDestroyWindow("src_gauss");
-    cvDestroyWindow("open_src");
     cvDestroyWindow("thres_window");
-    cvDestroyWindow("erode_out");
-    cvDestroyWindow("sepertate_im");
+    cvDestroyWindow("sepertate_im_again");
     cvDestroyWindow("single_char");
-    cvDestroyWindow("window_add");
-    cvDestroyWindow("rectangle_show");
 #endif
 }
 
@@ -912,18 +968,6 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
     }
 
 
-//    //    vector<vector<Point> >::iterator itc = contours.begin();
-//        vector<Rect> vecRect;
-//    //    cv::Mat rectangle_show = thres_window.clone();
-//    //    while (itc != contours.end())
-//    //    {
-//    //      Rect mr = boundingRect(Mat(*itc));
-//    //      Mat auxRoi(thres_window, mr);
-//    //      if (/*verifyCharSizes(auxRoi)*/1) vecRect.push_back(mr);
-//    //      ++itc;
-//    //      rectangle(rectangle_show, mr, Scalar(255, 0, 0), 3);
-//    //    }
-
     ////remove isolate contours
     Mat sepertate_im_remove(thres_window.size(),thres_window.depth(),Scalar(255));
     //移除过长或过短的轮廓
@@ -939,46 +983,13 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
         else
             ++itc_mm;
     }
-    removeIsoContour(contours);
+//    removeIsoContour(contours);
     drawContours(sepertate_im_remove,contours,-1,Scalar(0),2);
     while(1)
     {
       imshow("sepertate_im_remove",sepertate_im_remove);
       if(char(cvWaitKey(15))==27)break;
     }
-
-
-
-//    ////rebuild src image
-////    Mat rebuildSrc(spineGray.size(),spineGray.depth(),Scalar(0));
-//    vector<Point2d>  centers;    //轮廓质心坐标
-//    Point2d center;
-//    Moments mom; // 轮廓矩
-//    vector<vector<Point> >::iterator itr = contours.begin();
-//    while(itr!=contours.end())
-//    {
-//       //计算质心
-//       mom = moments(*itr);
-//       center.x = (int)(mom.m10/mom.m00);
-//       center.y = (int)(mom.m01/mom.m00);
-//       centers.push_back(center);
-//       itr++;
-//    }
-//    /*漫水填充连通区域*/
-//    Point2d seed;
-//    vector<Point2d>::iterator  itrc;    //质心坐标迭代器
-//    itrc = centers.begin();
-//    int new_scalar = 255;
-//    int loDiff = 8, upDiff = 8;
-//    int connectivity = 4;
-//    while(itrc!=centers.end())
-//    {
-//         seed = *itrc;
-//         floodFill(spineGray,seed,Scalar::all(new_scalar),NULL,
-//          Scalar::all(loDiff),Scalar::all(upDiff),connectivity);
-//         itrc++;
-//    }
-
 
     ////detect contous neiboughbour
     vector<vector<Point> >::iterator itc = contours.begin();
@@ -999,9 +1010,6 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
             vector<Point> contoursA = *itc;
             vector<Point> contoursB = *itc_next;
             min_distance = findShortestDistance(contoursA,contoursB,p_a,p_b);
-//            std::cout<<"min_distance = "<<min_distance<<std::endl;
-//            std::cout<<"p_a = ("<<p_a.x<<","<<p_a.y<<")"<<std::endl;
-//            std::cout<<"p_b = ("<<p_b.x<<","<<p_b.y<<")"<<std::endl;
             if(min_distance!=0)
             {
                 threshold_distance = connect_dis*(1+1.2*pow(abs((float)(p_b.y-p_a.y))/min_distance,2));
@@ -1031,7 +1039,7 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
                  contours_again,               // a vector of contours
                  CV_RETR_EXTERNAL,       // retrieve the external contours
                  CV_CHAIN_APPROX_NONE);  // all pixels of each contours
-    removeIsoContour(contours_again);    //remove isolate contours again
+//    removeIsoContour(contours_again);    //remove isolate contours again
     Mat sepertate_im_again(thres_window.size(),thres_window.depth(),Scalar(255));
     drawContours(sepertate_im_again,contours_again,-1,Scalar(0),2);
     while(1)
@@ -1085,6 +1093,386 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 
 }
 
+
+void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_char_vec,int im_num, bool save)
+{
+    srand((unsigned)time(NULL));
+
+    ////gauss smoothing
+    int m_GaussianBlurSize = 5;
+    Mat mat_blur;
+    GaussianBlur(spineGray, mat_blur, Size(m_GaussianBlurSize, m_GaussianBlurSize), 0, 0, BORDER_DEFAULT);
+
+    ////histequal and sharpen
+    Mat spineGrayTemp = mat_blur - 0.5;
+    cv::Mat spineAhe;
+    adaptiveHistEqual(spineGrayTemp, spineAhe, 0.01);
+    cv::Mat spineShrpen;
+    sharpenImage(spineAhe, spineShrpen);
+
+    ////threshold
+    cv::Mat thresh_src;
+    threshold(spineShrpen, thresh_src, 0, 255, THRESH_OTSU+ CV_THRESH_BINARY);
+    cv::Mat idx;
+    findNonZero(thresh_src, idx);
+    int one_count = (int)idx.total();
+    float one_percent = (float)one_count/(float)thresh_src.total();
+    std::cout<<"one_percent = "<<one_percent<<std::endl;
+    if(one_percent>0.6)
+    {
+        inv_bin = true;
+    }
+    else
+    {
+        inv_bin = false;
+    }
+
+    cv::Mat thresh_src_temp;
+    if(inv_bin)
+    {
+        threshold(spineShrpen, thresh_src_temp, 0, 255, THRESH_OTSU+ CV_THRESH_BINARY_INV);
+        thresh_src = thresh_src_temp;
+    }
+
+
+    ////morphological open
+    Mat element_src = getStructuringElement(MORPH_RECT, Size(2, 2));
+    Mat open_src;
+    morphologyEx(thresh_src,open_src,MORPH_OPEN,element_src);
+    while(1)
+    {
+      imshow("open_src", open_src);
+      if(char(cvWaitKey(15))==27)break;
+    }
+
+    ////delete edge noise
+    ////find contours
+    cv::Mat thres_window = open_src.clone();
+    Mat img_contours;
+    thres_window.copyTo(img_contours);
+    vector<vector<Point> > contours;
+    findContours(img_contours,
+                 contours,               // a vector of contours
+                 CV_RETR_EXTERNAL,       // retrieve the external contours
+                 CV_CHAIN_APPROX_NONE);  // all pixels of each contours
+    Mat sepertate_im(thres_window.size(),thres_window.depth(),Scalar(255));
+    drawContours(sepertate_im,contours,-1,Scalar(0),2);
+    while(1)
+    {
+      imshow("sepertate_im",sepertate_im);
+      if(char(cvWaitKey(15))==27)break;
+    }
+
+    ////detect noise contours
+    vector<vector<Point>> contours_remove;
+    Mat sepertate_im_remove(thres_window.size(),thres_window.depth(),Scalar(255));
+    //移除过长或过短的轮廓
+    int cmin = 3; //最小轮廓长度
+    int cmax = 2000;    //最大轮廓
+    vector<vector<Point>>::iterator itc_mm = contours.begin();
+    while (itc_mm!=contours.end())
+    {
+//        std::cout<<"itc_mm->size() = "<<itc_mm->size()<<std::endl;
+        if (itc_mm->size() < cmin || itc_mm->size() > cmax)
+        {
+           contours_remove.push_back(*itc_mm);
+           itc_mm = contours.erase(itc_mm);
+        }
+        else
+            ++itc_mm;
+    }
+//    // edge contours
+//    itc_mm = contours.begin();
+//    while (itc_mm!=contours.end())
+//    {
+//        vector<Point>::iterator itc_p = (*itc_mm).begin();
+//        bool edge_cont = false;
+//        while(itc_p!=(*itc_mm).end())
+//        {
+//           if((itc_p->x<=2)||(itc_p->x>=thres_window.cols - 2)||(itc_p->y<=2)||(itc_p->y>=thres_window.rows - 2))
+//           {
+//               edge_cont = true;
+//               break;
+//           }
+//           else
+//           {
+//               itc_p++;
+//           }
+//        }
+//        if(edge_cont)
+//        {
+//             contours_remove.push_back(*itc_mm);
+//             itc_mm = contours.erase(itc_mm);
+//        }
+//        else
+//            ++itc_mm;
+//    }
+
+    /// isolate contours
+    removeIsoContour(contours,contours_remove);
+    drawContours(sepertate_im_remove,contours,-1,Scalar(0),2);
+    while(1)
+    {
+      imshow("sepertate_im_remove",sepertate_im_remove);
+      if(char(cvWaitKey(15))==27)break;
+    }
+
+
+
+    ////delete noise contous
+    for(int i=0;i<open_src.rows;i++)
+    {
+        for(int j=0;j<open_src.cols;j++)
+        {
+            vector<vector<Point> >::iterator itc_det = contours_remove.begin();
+            while(itc_det != contours_remove.end())
+            {
+                int inner_point = pointPolygonTest(*itc_det,Point(j,i),false);
+                if((inner_point == 1)||(inner_point == 0))
+                {
+                    open_src.at<uchar>(i, j) = 0;
+                    break;
+                }
+                itc_det++;
+            }
+        }
+    }
+    while(1)
+    {
+      imshow("open_src_remove",open_src);
+      if(char(cvWaitKey(15))==27)break;
+    }
+
+
+    cvDestroyWindow("open_sr");
+    cvDestroyWindow("sepertate_im_remove");
+    cvDestroyWindow("sepertate_im");
+    cvDestroyWindow("open_src_remove");
+
+    ////get project
+    //row segment
+    vector<int> pos_h;
+    pos_h.resize(open_src.rows,0);
+    vector<char_range_t> peek_range_h;
+    char_range_t main_peek_rang_h;
+    GetTextProjection(open_src,pos_h,H_PROJECT);
+    draw_projection(pos_h,H_PROJECT);
+    GetPeekRange(pos_h,peek_range_h,1,2);
+//    for(int i =0;i<peek_range_h.size();i++)
+//    {
+//        std::cout<<"peek_range.size = "<<peek_range_h.size()<<std::endl;
+//        std::cout<<"peek_range = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
+//        int peek_rang = peek_range_h.at(i).end - peek_range_h.at(i).begin;
+//        if(peek_rang > 0.5*open_src.rows)
+//        {
+//            main_peek_rang_h = peek_range_h.at(i);
+//            break;
+//        }
+//        else if(i<peek_range_h.size()-1)
+//        {
+//           int peek_rang_next = peek_range_h.at(i+1).end - peek_range_h.at(i+1).begin;
+//           int peek_rang_gap = peek_range_h.at(i+1).begin - peek_range_h.at(i).end;
+//           if((peek_rang>0.05*open_src.rows)&&(peek_rang_next>0.05*open_src.rows))
+//           {
+//                   if(peek_rang_gap <0.5*peek_rang)//gap distance
+//                   {
+//                       main_peek_rang_h.begin = peek_range_h.at(i).begin;
+//                       main_peek_rang_h.end = peek_range_h.at(i+1).end;
+//                       break;
+//                   }
+//           }
+//        }
+//    }
+    //connect neighgour peek
+    std::cout<<"peek_range.size = "<<peek_range_h.size()<<std::endl;
+    if(peek_range_h.size()==0)
+    {
+        while(1)
+        {
+          if(char(cvWaitKey(15))==27)break;
+        }
+    }
+
+    for(int i =0;i<peek_range_h.size()-1;i++)
+    {
+        std::cout<<"peek_range = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
+        int peek_rang = peek_range_h.at(i).end - peek_range_h.at(i).begin;
+        int peek_rang_next = peek_range_h.at(i+1).end - peek_range_h.at(i+1).begin;
+        int peek_rang_gap = peek_range_h.at(i+1).begin - peek_range_h.at(i).end;
+        if((peek_rang>0.01*open_src.rows)&&(peek_rang_next>0.01*open_src.rows))
+        {
+           if(peek_rang_gap <0.08*open_src.rows)//gap distance
+           {
+               peek_range_h.at(i+1).begin = peek_range_h.at(i).begin;
+               peek_range_h.at(i+1).end = peek_range_h.at(i+1).end;
+           }
+        }
+    }
+    //find main peek
+    main_peek_rang_h = peek_range_h.at(0);
+    int peek_main_scale = main_peek_rang_h.end - main_peek_rang_h.begin;
+    std::cout<<"peek_range after connect.size = "<<peek_range_h.size()<<std::endl;
+    for(int i =0;i<peek_range_h.size();i++)
+    {
+        std::cout<<"peek_range after connect = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
+        int peek_scale = peek_range_h.at(i).end - peek_range_h.at(i).begin;
+        if(peek_scale>peek_main_scale)
+        {
+            main_peek_rang_h = peek_range_h.at(i);
+            peek_main_scale = main_peek_rang_h.end - main_peek_rang_h.begin;
+        }
+    }
+    std::cout<<"main_peek_rang_h = "<<main_peek_rang_h.begin<<" ~ "<<main_peek_rang_h.end<<std::endl;
+
+    Rect mainRow(0,main_peek_rang_h.begin,open_src.cols,main_peek_rang_h.end-main_peek_rang_h.begin);
+    Mat charRow(open_src, mainRow);
+#ifdef DEBUG
+        while(1)
+        {
+          imshow( "charRow", charRow );
+          if(char(cvWaitKey(15))==27)break;
+        }
+#endif
+
+
+
+    //cols segment for main row
+    vector<int> pos_v;
+    pos_v.resize(charRow.cols,0);
+    vector<char_range_t> peek_range_v;
+    vector<char_range_t> char_rang;
+    char_rang.clear();
+    GetTextProjection(charRow,pos_v,V_PROJECT);
+    draw_projection(pos_v,V_PROJECT);
+    GetPeekRange(pos_v,peek_range_v,1,2);
+    for(int i =0;i<peek_range_v.size();i++)
+    {   int peek_rang = peek_range_v.at(i).end - peek_range_v.at(i).begin;
+        if(peek_rang>0.01*charRow.cols)
+        {
+            if(i<peek_range_v.size()-1)
+            {
+                int peek_rang_next = peek_range_v.at(i+1).end - peek_range_v.at(i+1).begin;
+                int peek_rang_gap = peek_range_v.at(i+1).begin - peek_range_v.at(i).end;
+                if((peek_rang_next>0.01*charRow.cols)&&(peek_rang_gap <0.01*charRow.cols))
+                {
+                    if(i<peek_range_v.size()-2)
+                    {
+                        int peek_rang_next_next = peek_range_v.at(i+2).end - peek_range_v.at(i+2).begin;
+                        int peek_rang_gap_next = peek_range_v.at(i+2).begin - peek_range_v.at(i+1).end;
+                        if((peek_rang_next_next>0.01*charRow.cols)&&(peek_rang_gap_next <0.01*charRow.cols))
+                        {
+                            char_range_t connect_peek;
+                            connect_peek.begin = peek_range_v.at(i).begin;
+                            connect_peek.end = peek_range_v.at(i+2).end;
+                            char_rang.push_back(connect_peek);
+                            i = i+2;
+                        }
+                        else
+                        {
+                            char_range_t connect_peek;
+                            connect_peek.begin = peek_range_v.at(i).begin;
+                            connect_peek.end = peek_range_v.at(i+1).end;
+                            char_rang.push_back(connect_peek);
+                            i++;
+                        }
+                    }
+                    else
+                    {
+                        char_range_t connect_peek;
+                        connect_peek.begin = peek_range_v.at(i).begin;
+                        connect_peek.end = peek_range_v.at(i+1).end;
+                        char_rang.push_back(connect_peek);
+                        i++;
+                    }
+
+                }
+                else
+                {
+                    char_rang.push_back(peek_range_v.at(i));
+                }
+            }
+            else
+            {
+                char_rang.push_back(peek_range_v.at(i));
+            }
+
+        }
+    }
+
+    vector<char_range_t>::iterator itc = char_rang.begin();
+    vector<Rect> vecRect_temp;
+    while (itc != char_rang.end())
+    {
+        Rect charRec((*itc).begin,0,(*itc).end-(*itc).begin,charRow.rows);
+        vecRect_temp.push_back(charRec);
+        ++itc;
+    }
+
+    ////seperate big char(connect char)
+    vector<Rect> vecRect;
+    for(int i = 0;i<vecRect_temp.size();i++)
+    {
+        if(vecRect_temp.at(i).width>=0.75*PIECEWIDTH)//4 char connect
+        {
+            int piece4 = vecRect_temp.at(i).width/4;
+            int piece_h = vecRect_temp.at(i).height;
+            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece4,piece_h);
+            Rect charRec2(vecRect_temp.at(i).x+1*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+            Rect charRec3(vecRect_temp.at(i).x+2*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+            Rect charRec4(vecRect_temp.at(i).x+3*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+            vecRect.push_back(charRec1);
+            vecRect.push_back(charRec2);
+            vecRect.push_back(charRec3);
+            vecRect.push_back(charRec4);
+        }
+        else if(vecRect_temp.at(i).width>=0.55*PIECEWIDTH)//3 char connect
+        {
+            int piece3 = vecRect_temp.at(i).width/3;
+            int piece_h = vecRect_temp.at(i).height;
+            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece3,piece_h);
+            Rect charRec2(vecRect_temp.at(i).x+1*piece3,vecRect_temp.at(i).y,piece3,piece_h);
+            Rect charRec3(vecRect_temp.at(i).x+2*piece3,vecRect_temp.at(i).y,piece3,piece_h);
+            vecRect.push_back(charRec1);
+            vecRect.push_back(charRec2);
+            vecRect.push_back(charRec3);
+        }
+        else if(vecRect_temp.at(i).width>=0.35*PIECEWIDTH)//2 char connect
+        {
+            int piece2 = vecRect_temp.at(i).width/2;
+            int piece_h = vecRect_temp.at(i).height;
+            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece2,piece_h);
+            Rect charRec2(vecRect_temp.at(i).x+1*piece2,vecRect_temp.at(i).y,piece2,piece_h);
+            vecRect.push_back(charRec1);
+            vecRect.push_back(charRec2);
+        }
+        else
+        {
+            vecRect.push_back(vecRect_temp.at(i));
+        }
+    }
+
+    ////save single char image after segment
+    for(int char_num=0;char_num<vecRect.size();char_num++)
+    {
+         Mat single_char_=charRow(vecRect.at(char_num));
+         Mat single_char;
+         single_char = preprocessChar(single_char_);
+         single_char_vec.push_back(single_char);
+#ifdef DEBUG
+        while(1)
+        {
+          imshow( "single_char", single_char_ );
+          if(char(cvWaitKey(15))==27)break;
+        }
+#endif
+    }
+
+#ifdef DEBUG
+    cvDestroyWindow("single_char");
+    cvDestroyWindow("charRow");
+
+#endif
+}
 
 void TextDetector::imgQuantize(cv::Mat &src, cv::Mat &dst, double level){
     dst = cv::Mat::zeros(src.rows, src.cols, CV_8U);

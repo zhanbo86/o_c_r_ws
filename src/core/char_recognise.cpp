@@ -78,7 +78,7 @@ int CharRecog::charRecognise()
     capture_1 = false;
 
     //// Load image and resize to 1280*1024,source img is 2448*2048
-    Mat im = imread("/home/zb/BoZhan/ocr_ws/0104PCB/5.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_ANYCOLOR);
+    Mat im = imread("/home/zb/BoZhan/ocr_ws/src/easyocr/raw_img/2/1.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_GRAYSCALE);
     Size low_res = cv::Size((int)(im.size().width/2),(int)(im.size().height/2));
     Mat img_100(low_res,im.depth(),1);
     if (im.empty())
@@ -90,15 +90,20 @@ int CharRecog::charRecognise()
              <<" , "<<"depth = "<<im.depth()<<" , "<<"channel = "<<im.channels()<<std::endl;
     //    cv::Mat gray;
     //    cv::cvtColor(im, gray, CV_BGR2GRAY);
+
+#ifdef BIGIMG
     cv::resize(im,img_100,low_res,0,0,CV_INTER_LINEAR);
     std::cout<<"img width = "<<img_100.size().width<<" , "<<" height = "<<img_100.size().height
              <<" , "<<"depth = "<<img_100.depth()<<" , "<<"channel = "<<img_100.channels()<<std::endl;
     imshow( "source", img_100 );
     cvSetMouseCallback("source",my_mouse_callback_1,NULL);
-
+#else
+    img_100 = im.clone();
+#endif
 
     ////pick ocr piece
     cv::Mat ocr_piece;
+#ifdef BIGIMG
     while(num_p_1!=4)
     {
       imshow( "source", img_100 );
@@ -144,6 +149,15 @@ int CharRecog::charRecognise()
 //    }
     cvDestroyWindow("source");
     cvDestroyWindow("pick_ocr");
+#else
+    ocr_piece = im.clone();
+    while(1)
+    {
+      imshow( "pick_ocr", im );
+      if(char(cvWaitKey(15))==27)break;
+    }
+    cvDestroyWindow("pick_ocr");
+#endif
 
 
     ////pre-process image
@@ -157,8 +171,9 @@ int CharRecog::charRecognise()
 //    detector.segmentSrcSlide(ocr_piece, single_char_vec,char_width,char_height,0,true,char_mat_height,char_mat_width);
 //    Mat single_char_precise(char_mat_height,char_mat_width, CV_8UC1);
 //    detector.segmentSrcPre(ocr_piece);
-    detector.segmentSobMor(ocr_piece, single_char_vec,vecContoRect,0,false);
-    detector.segmentSrcMor(ocr_piece, single_char_vec,vecContoRect,0,false);
+//    detector.segmentSobMor(ocr_piece, single_char_vec,vecContoRect,0,false);
+//    detector.segmentSrcMor(ocr_piece, single_char_vec,vecContoRect,0,false);
+      detector.segmentSrcProject(ocr_piece, single_char_vec,0,false);
 //    std::cout<<"ocr_piece_size = "<<ocr_piece.rows<<" * "<<ocr_piece.cols<<std::endl;
 //    std::cout<<"char_width = "<<char_width<<" , "<<"char_height = "<<char_height<<std::endl;
 //    std::cout<<"single_char_amount = "<<single_char_vec.size()<<std::endl;
@@ -286,6 +301,7 @@ int CharRecog::charRecognise()
     clock_t b=clock();
     cout<<"time cost = "<<1000*(double)(b - a) / CLOCKS_PER_SEC<<" ms "<<endl;
 
+    cvDestroyWindow("single_char");
     return 0;
 }
 

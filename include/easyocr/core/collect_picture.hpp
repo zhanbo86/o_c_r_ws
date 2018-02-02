@@ -8,6 +8,7 @@
 #include "pre_process.hpp"
 #include "easyocr/util/util.h"
 #include "easyocr/config.h"
+#include "easyocr/core/chars_identify.h"
 
 
 class CollectPic
