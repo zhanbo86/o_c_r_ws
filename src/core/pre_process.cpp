@@ -19,7 +19,7 @@ cv::Mat TextDetector::preProcess(cv::Mat &image){
 }
 
 
-void TextDetector::segmentRow(cv::Mat &open_src_in, cv::Mat &out, float gap=0.08)
+void TextDetector::segmentRow(cv::Mat &open_src_in,cv::Mat &gray_src_in, cv::Mat &out, float gap=0.08)
 {
     vector<int> pos_h;
     pos_h.resize(open_src_in.rows,0);
@@ -29,7 +29,9 @@ void TextDetector::segmentRow(cv::Mat &open_src_in, cv::Mat &out, float gap=0.08
     draw_projection(pos_h,H_PROJECT);
     GetPeekRange(pos_h,peek_range_h,1,2);
     //connect neighgour peek
+#ifdef DEBUG
     std::cout<<"peek_range.size = "<<peek_range_h.size()<<std::endl;
+#endif
     if(peek_range_h.size()==0)
     {
         while(1)
@@ -40,7 +42,9 @@ void TextDetector::segmentRow(cv::Mat &open_src_in, cv::Mat &out, float gap=0.08
 
     for(int i =0;i<peek_range_h.size()-1;i++)
     {
+#ifdef DEBUG
         std::cout<<"peek_range = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
+#endif
         int peek_rang = peek_range_h.at(i).end - peek_range_h.at(i).begin;
         int peek_rang_next = peek_range_h.at(i+1).end - peek_range_h.at(i+1).begin;
         int peek_rang_gap = peek_range_h.at(i+1).begin - peek_range_h.at(i).end;
@@ -57,10 +61,14 @@ void TextDetector::segmentRow(cv::Mat &open_src_in, cv::Mat &out, float gap=0.08
     //find main peek
     main_peek_rang_h = peek_range_h.at(0);
     int peek_main_scale = main_peek_rang_h.end - main_peek_rang_h.begin;
+#ifdef DEBUG
     std::cout<<"peek_range after connect.size = "<<peek_range_h.size()<<std::endl;
+#endif
     for(int i =0;i<peek_range_h.size();i++)
     {
+        #ifdef DEBUG
         std::cout<<"peek_range after connect = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
+        #endif
         int peek_scale = peek_range_h.at(i).end - peek_range_h.at(i).begin;
         if(peek_scale>peek_main_scale)
         {
@@ -68,10 +76,12 @@ void TextDetector::segmentRow(cv::Mat &open_src_in, cv::Mat &out, float gap=0.08
             peek_main_scale = main_peek_rang_h.end - main_peek_rang_h.begin;
         }
     }
+#ifdef DEBUG
     std::cout<<"main_peek_rang_h = "<<main_peek_rang_h.begin<<" ~ "<<main_peek_rang_h.end<<std::endl;
-
+#endif
     Rect mainRow(0,main_peek_rang_h.begin,open_src_in.cols,main_peek_rang_h.end-main_peek_rang_h.begin);
-    Mat charRow(open_src_in, mainRow);
+//    Mat charRow(open_src_in, mainRow);
+    Mat charRow(gray_src_in, mainRow);//modify on 20180308
     out = charRow;
 }
 
@@ -174,15 +184,17 @@ void TextDetector::draw_projection(vector<int>& pos,int mode)
             {
                 project.at<uchar>(i, j) = 255;
             }
-            std::cout<<"pos"<<i<<" = "<<pos[i]<<std::endl;
+//            std::cout<<"pos"<<i<<" = "<<pos[i]<<std::endl;
 
         }
+#ifdef DEBUG
         while(1)
         {
           imshow("horizational projection", project);
           if(char(cvWaitKey(15))==27)break;
         }
         cvDestroyWindow("horizational projection");
+#endif
     }
     else if (mode == V_PROJECT)
     {
@@ -197,35 +209,18 @@ void TextDetector::draw_projection(vector<int>& pos,int mode)
                 project.at<uchar>(j, i) = 255;
             }
         }
+#ifdef DEBUG
         while(1)
         {
           imshow("verticle projection", project);
           if(char(cvWaitKey(15))==27)break;
         }
         cvDestroyWindow("verticle projection");
+#endif
     }
 }
 
 
-int TextDetector::draw_main_row(vector<int>& pos,char_range_t &main_peek_rang_v)
-{
-    int height = pos.size();
-    int width = 10;
-    Mat project = Mat::zeros(height, width, CV_8UC1);
-    for (int i = 0; i < project.rows; i++)
-    {
-        if((i>=main_peek_rang_v.begin)&&(i<=main_peek_rang_v.end))
-        {
-            for (int j = 0; j <  project.cols; j++)
-            {
-                project.at<uchar>(i, j) = 255;
-            }
-        }
-
-    }
-    imshow("horizational main range projection", project);
-    waitKey();
-}
 
 
 int TextDetector::GetPeekRange(vector<int> &horizental_pos, vector<char_range_t> &peek_range, int min_thresh = 2, int min_range = 5)
@@ -515,7 +510,9 @@ void TextDetector::removeIsoContour(vector<vector<Point> > &contours,vector<vect
             contours_remove.push_back(*itc);
             itc2 = contours.erase(itc);
             itc = itc2;
+#ifdef DEBUG
             std::cout<<"erase this contour for obsolute!!!"<<std::endl;
+#endif
         }
         else
         {
@@ -1151,9 +1148,12 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 }
 
 
-void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_char_vec,int im_num, bool save)
+void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_char_vec)
 {
     srand((unsigned)time(NULL));
+
+    Mat spineGray_copy;
+    spineGray.copyTo(spineGray_copy);
 
     ////gauss smoothing
     int m_GaussianBlurSize = 5;
@@ -1196,11 +1196,13 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
     Mat element_src = getStructuringElement(MORPH_RECT, Size(2, 2));
     Mat open_src;
     morphologyEx(thresh_src,open_src,MORPH_OPEN,element_src);
+#ifdef DEBUG
     while(1)
     {
       imshow("open_src", open_src);
       if(char(cvWaitKey(15))==27)break;
     }
+#endif
 
     ////delete edge noise
     ////find contours
@@ -1214,12 +1216,14 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
                  CV_CHAIN_APPROX_NONE);  // all pixels of each contours
     Mat sepertate_im(thres_window.size(),thres_window.depth(),Scalar(255));
     drawContours(sepertate_im,contours,-1,Scalar(0),2);
+#ifdef DEBUG
     while(1)
     {
       imshow("sepertate_im",sepertate_im);
       if(char(cvWaitKey(15))==27)break;
     }
     std::cout<<"find contours = "<<contours.size()<<std::endl;
+#endif
 
     ////detect noise contours
     vector<vector<Point>> contours_remove;
@@ -1235,7 +1239,9 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
         {
            contours_remove.push_back(*itc_mm);
            itc_mm = contours.erase(itc_mm);
+#ifdef DEBUG
            std::cout<<"erase this contour for too short or too long !!!"<<std::endl;
+#endif
         }
         else
             ++itc_mm;
@@ -1269,7 +1275,9 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
         {
              contours_remove.push_back(*itc_mm);
              itc_mm = contours.erase(itc_mm);
+#ifdef DEBUG
              std::cout<<"erase this contour for edge !!!"<<std::endl;
+#endif
         }
         else
             ++itc_mm;
@@ -1281,12 +1289,13 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
         removeIsoContour(contours,contours_remove);
     }
     drawContours(sepertate_im_remove,contours,-1,Scalar(0),2);
+#ifdef DEBUG
     while(1)
     {
       imshow("sepertate_im_remove",sepertate_im_remove);
       if(char(cvWaitKey(15))==27)break;
     }
-
+#endif
 
 
     ////delete noise contous
@@ -1307,73 +1316,24 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
             }
         }
     }
+#ifdef DEBUG
     while(1)
     {
       imshow("open_src_remove",open_src);
       if(char(cvWaitKey(15))==27)break;
     }
 
-
     cvDestroyWindow("open_sr");
     cvDestroyWindow("sepertate_im_remove");
     cvDestroyWindow("sepertate_im");
     cvDestroyWindow("open_src_remove");
+#endif
+
 
     ////get project
     //row segment
     Mat charRow;
-    segmentRow(open_src,charRow,0.08);
-//    vector<int> pos_h;
-//    pos_h.resize(open_src.rows,0);
-//    vector<char_range_t> peek_range_h;
-//    char_range_t main_peek_rang_h;
-//    GetTextProjection(open_src,pos_h,H_PROJECT);
-//    draw_projection(pos_h,H_PROJECT);
-//    GetPeekRange(pos_h,peek_range_h,1,2);
-//    //connect neighgour peek
-//    std::cout<<"peek_range.size = "<<peek_range_h.size()<<std::endl;
-//    if(peek_range_h.size()==0)
-//    {
-//        while(1)
-//        {
-//          if(char(cvWaitKey(15))==27)break;
-//        }
-//    }
-
-//    for(int i =0;i<peek_range_h.size()-1;i++)
-//    {
-//        std::cout<<"peek_range = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
-//        int peek_rang = peek_range_h.at(i).end - peek_range_h.at(i).begin;
-//        int peek_rang_next = peek_range_h.at(i+1).end - peek_range_h.at(i+1).begin;
-//        int peek_rang_gap = peek_range_h.at(i+1).begin - peek_range_h.at(i).end;
-//        if((peek_rang>0.01*open_src.rows)&&(peek_rang_next>0.01*open_src.rows)&&(peek_range_h.at(i+1).end<0.95*open_src.rows)
-//                &&(peek_range_h.at(i).begin>0.05*open_src.rows))
-//        {
-//           if(peek_rang_gap <0.08*open_src.rows)//gap distance
-//           {
-//               peek_range_h.at(i+1).begin = peek_range_h.at(i).begin;
-//               peek_range_h.at(i+1).end = peek_range_h.at(i+1).end;
-//           }
-//        }
-//    }
-//    //find main peek
-//    main_peek_rang_h = peek_range_h.at(0);
-//    int peek_main_scale = main_peek_rang_h.end - main_peek_rang_h.begin;
-//    std::cout<<"peek_range after connect.size = "<<peek_range_h.size()<<std::endl;
-//    for(int i =0;i<peek_range_h.size();i++)
-//    {
-//        std::cout<<"peek_range after connect = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
-//        int peek_scale = peek_range_h.at(i).end - peek_range_h.at(i).begin;
-//        if(peek_scale>peek_main_scale)
-//        {
-//            main_peek_rang_h = peek_range_h.at(i);
-//            peek_main_scale = main_peek_rang_h.end - main_peek_rang_h.begin;
-//        }
-//    }
-//    std::cout<<"main_peek_rang_h = "<<main_peek_rang_h.begin<<" ~ "<<main_peek_rang_h.end<<std::endl;
-
-//    Rect mainRow(0,main_peek_rang_h.begin,open_src.cols,main_peek_rang_h.end-main_peek_rang_h.begin);
-//    Mat charRow(open_src, mainRow);
+    segmentRow(open_src,spineGray_copy,charRow,0.08);
 #ifdef DEBUG
         while(1)
         {
@@ -1401,13 +1361,13 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
             {
                 int peek_rang_next = peek_range_v.at(i+1).end - peek_range_v.at(i+1).begin;
                 int peek_rang_gap = peek_range_v.at(i+1).begin - peek_range_v.at(i).end;
-                if((peek_rang_next>0.01*charRow.cols)&&(peek_rang_gap <0.01*charRow.cols))
+                if((peek_rang_next>0.01*charRow.cols)&&(peek_rang_gap <0.015*charRow.cols))
                 {
                     if(i<peek_range_v.size()-2)
                     {
                         int peek_rang_next_next = peek_range_v.at(i+2).end - peek_range_v.at(i+2).begin;
                         int peek_rang_gap_next = peek_range_v.at(i+2).begin - peek_range_v.at(i+1).end;
-                        if((peek_rang_next_next>0.01*charRow.cols)&&(peek_rang_gap_next <0.01*charRow.cols))
+                        if((peek_rang_next_next>0.01*charRow.cols)&&(peek_rang_gap_next <0.015*charRow.cols))
                         {
                             char_range_t connect_peek;
                             connect_peek.begin = peek_range_v.at(i).begin;
@@ -1447,56 +1407,67 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
         }
     }
 
+//    vector<char_range_t>::iterator itc = char_rang.begin();
+//    vector<Rect> vecRect_temp;
+//    while (itc != char_rang.end())
+//    {
+//        Rect charRec((*itc).begin,0,(*itc).end-(*itc).begin,charRow.rows);
+//        vecRect_temp.push_back(charRec);
+//        ++itc;
+//    }
+    //modify for more than one char per chop
     vector<char_range_t>::iterator itc = char_rang.begin();
     vector<Rect> vecRect_temp;
-    while (itc != char_rang.end())
+    while ((itc+1) != char_rang.end())
     {
-        Rect charRec((*itc).begin,0,(*itc).end-(*itc).begin,charRow.rows);
+        Rect charRec((*itc).begin,0,(*(itc+1)).end-(*itc).begin,charRow.rows);
         vecRect_temp.push_back(charRec);
         ++itc;
     }
+
 
     ////seperate big char(connect char)
     vector<Rect> vecRect;
     for(int i = 0;i<vecRect_temp.size();i++)
     {
-        if(vecRect_temp.at(i).width>=0.75*PIECEWIDTH)//4 char connect
-        {
-            int piece4 = vecRect_temp.at(i).width/4;
-            int piece_h = vecRect_temp.at(i).height;
-            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece4,piece_h);
-            Rect charRec2(vecRect_temp.at(i).x+1*piece4,vecRect_temp.at(i).y,piece4,piece_h);
-            Rect charRec3(vecRect_temp.at(i).x+2*piece4,vecRect_temp.at(i).y,piece4,piece_h);
-            Rect charRec4(vecRect_temp.at(i).x+3*piece4,vecRect_temp.at(i).y,piece4,piece_h);
-            vecRect.push_back(charRec1);
-            vecRect.push_back(charRec2);
-            vecRect.push_back(charRec3);
-            vecRect.push_back(charRec4);
-        }
-        else if(vecRect_temp.at(i).width>=0.55*PIECEWIDTH)//3 char connect
-        {
-            int piece3 = vecRect_temp.at(i).width/3;
-            int piece_h = vecRect_temp.at(i).height;
-            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece3,piece_h);
-            Rect charRec2(vecRect_temp.at(i).x+1*piece3,vecRect_temp.at(i).y,piece3,piece_h);
-            Rect charRec3(vecRect_temp.at(i).x+2*piece3,vecRect_temp.at(i).y,piece3,piece_h);
-            vecRect.push_back(charRec1);
-            vecRect.push_back(charRec2);
-            vecRect.push_back(charRec3);
-        }
-        else if(vecRect_temp.at(i).width>=0.35*PIECEWIDTH)//2 char connect
-        {
-            int piece2 = vecRect_temp.at(i).width/2;
-            int piece_h = vecRect_temp.at(i).height;
-            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece2,piece_h);
-            Rect charRec2(vecRect_temp.at(i).x+1*piece2,vecRect_temp.at(i).y,piece2,piece_h);
-            vecRect.push_back(charRec1);
-            vecRect.push_back(charRec2);
-        }
-        else
-        {
-            vecRect.push_back(vecRect_temp.at(i));
-        }
+//        if(vecRect_temp.at(i).width>=0.75*PIECEWIDTH)//4 char connect
+//        {
+//            int piece4 = vecRect_temp.at(i).width/4;
+//            int piece_h = vecRect_temp.at(i).height;
+//            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece4,piece_h);
+//            Rect charRec2(vecRect_temp.at(i).x+1*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+//            Rect charRec3(vecRect_temp.at(i).x+2*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+//            Rect charRec4(vecRect_temp.at(i).x+3*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+//            vecRect.push_back(charRec1);
+//            vecRect.push_back(charRec2);
+//            vecRect.push_back(charRec3);
+//            vecRect.push_back(charRec4);
+//        }
+//        else if(vecRect_temp.at(i).width>=0.55*PIECEWIDTH)//3 char connect
+//        {
+//            int piece3 = vecRect_temp.at(i).width/3;
+//            int piece_h = vecRect_temp.at(i).height;
+//            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece3,piece_h);
+//            Rect charRec2(vecRect_temp.at(i).x+1*piece3,vecRect_temp.at(i).y,piece3,piece_h);
+//            Rect charRec3(vecRect_temp.at(i).x+2*piece3,vecRect_temp.at(i).y,piece3,piece_h);
+//            vecRect.push_back(charRec1);
+//            vecRect.push_back(charRec2);
+//            vecRect.push_back(charRec3);
+//        }
+//        else if(vecRect_temp.at(i).width>=0.35*PIECEWIDTH)//2 char connect
+//        {
+//            int piece2 = vecRect_temp.at(i).width/2;
+//            int piece_h = vecRect_temp.at(i).height;
+//            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece2,piece_h);
+//            Rect charRec2(vecRect_temp.at(i).x+1*piece2,vecRect_temp.at(i).y,piece2,piece_h);
+//            vecRect.push_back(charRec1);
+//            vecRect.push_back(charRec2);
+//        }
+//        else
+//        {
+//            vecRect.push_back(vecRect_temp.at(i));
+//        }
+        vecRect.push_back(vecRect_temp.at(i));//modify for more than one char per chop
     }
 
     ////save single char image after segment
@@ -1505,9 +1476,23 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
          Mat single_char_=charRow(vecRect.at(char_num));
 //         Mat single_char_seg;
 //         segmentRow(single_char_,single_char_seg,1.2);
-         Mat single_char;
-         single_char = preprocessChar(single_char_);
-         single_char_vec.push_back(single_char);
+
+         //delete too small object(noise)
+         cv::Mat idx_char;
+         findNonZero(single_char_, idx_char);
+         int one_count = (int)idx_char.total();
+         float one_percent = (float)one_count/(float)single_char_.total();
+//         std::cout<<"one_percent = "<<one_percent<<std::endl;
+         if(one_percent>0.15)
+         {
+             Mat single_char;
+//             ////进行open操作
+//             Mat char_sob_ele = getStructuringElement(MORPH_RECT, Size(2, 2));
+//             Mat char_sob;
+//             morphologyEx(single_char,char_sob,MORPH_OPEN,element_sob);
+//             single_char = preprocessChar(single_char_);//modify on 20180309
+             single_char_vec.push_back(single_char_);
+         }
 #ifdef DEBUG
         while(1)
         {

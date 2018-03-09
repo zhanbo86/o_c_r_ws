@@ -232,7 +232,7 @@ std::pair<std::string, std::string> CharsIdentify::identify(cv::Mat input, float
   auto index = static_cast<int>(classify(feature, maxVal,isAlphabet));
   maxValue_ = maxVal;
   if (index < kCharactersNumber) {
-      if(maxVal>0.90)
+      if(maxVal>0.20)
       {
           return std::make_pair(kChars[index], kChars[index]);
       }

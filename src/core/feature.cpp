@@ -150,12 +150,12 @@ Mat charFeatures(Mat in, int sizeData) {
   Rect _rect = GetCenterRect(in);
   Mat tmpIn = CutTheRect(in, _rect);
 //  Mat tmpIn = in.clone();
-  while(1)
-  {
-    imshow("CutTheRect", tmpIn);
-    if(char(cvWaitKey(15))==27)break;
-  }
-  cvDestroyWindow("CutTheRect");
+//  while(1)
+//  {
+//    imshow("CutTheRect", tmpIn);
+//    if(char(cvWaitKey(15))==27)break;
+//  }
+//  cvDestroyWindow("CutTheRect");
 
   // Low data feature
   Mat lowData;
@@ -166,7 +166,7 @@ Mat charFeatures(Mat in, int sizeData) {
   Mat hhist = ProjectedHistogram(lowData, HORIZONTAL);
 
   // Last 10 is the number of moments components
-  int numCols = vhist.cols + hhist.cols + lowData.cols * lowData.cols;
+  int numCols = vhist.cols + hhist.cols + lowData.rows * lowData.cols;
 
   Mat out = Mat::zeros(1, numCols, CV_32F);
   // Asign values to
@@ -211,7 +211,7 @@ Mat charFeatures2(Mat in, int sizeData) {
   Mat hhist = ProjectedHistogram(lowData, HORIZONTAL);
 
   // Last 10 is the number of moments components
-  int numCols = vhist.cols + hhist.cols + lowData.cols * lowData.cols;
+  int numCols = vhist.cols + hhist.cols + lowData.rows * lowData.cols;
 
   Mat out = Mat::zeros(1, numCols, CV_32F);
 

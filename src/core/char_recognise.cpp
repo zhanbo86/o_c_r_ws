@@ -5,7 +5,9 @@ using namespace std;
 using namespace easyocr;
 
 
-CharRecog::CharRecog()
+
+CharRecog::CharRecog(const char *chars_folder)
+: chars_folder_(chars_folder)
 {
 }
 
@@ -69,239 +71,202 @@ Mat CharRecog::preprocessChar(Mat in) {
   return out;
 }
 
+int CharRecog::cdata(std::vector<cv::Mat> &matVec)
+{
+    assert(chars_folder_);
+
+    auto chars_files = Utils::getFiles(chars_folder_);
+    if (chars_files.size() == 0) {
+      fprintf(stdout, "No file found in the train folder!\n");
+      fprintf(stdout, "You should create a folder named \"tmp\" in easyocr main folder.\n");
+      fprintf(stdout, "Copy train data folder(like \"ann\") under \"tmp\". \n");
+      return -1;
+    }
+    size_t char_size = chars_files.size();
+    fprintf(stdout, ">> img count: %d \n", int(char_size));
+
+    for (auto file : chars_files) {
+      auto img = cv::imread(file, 0);  // a grayscale image
+      matVec.push_back(img);
+    }
+    fprintf(stdout, ">> img collect count: %d \n", (int)matVec.size());
+    return 0;
+}
+
 int CharRecog::charRecognise()
 {
-    ////reset for every image
-    num_p_1 = 0;
-    x_int_1 = 0;
-    y_int_1 = 0;
-    capture_1 = false;
-
-    //// Load image and resize to 1280*1024,source img is 2448*2048
-    Mat im = imread("/home/zb/BoZhan/ocr_ws/src/easyocr/raw_img/2/1.bmp",CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_GRAYSCALE);
-    Size low_res = cv::Size((int)(im.size().width/2),(int)(im.size().height/2));
-    Mat img_100(low_res,im.depth(),1);
-    if (im.empty())
+    //load raw img data.
+    std::cout<<"load img from raw_img file."<<std::endl;
+    int number_for_count = 350;
+    std::vector<cv::Mat> matVec;
+    matVec.reserve(number_for_count);
+    if(cdata(matVec)!=0)
     {
-        std::cout << "Cannot open source image!" << std::endl;
         return -1;
-    }
-    std::cout<<"im source width = "<<im.size().width<<" , "<<" height = "<<im.size().height
-             <<" , "<<"depth = "<<im.depth()<<" , "<<"channel = "<<im.channels()<<std::endl;
-    //    cv::Mat gray;
-    //    cv::cvtColor(im, gray, CV_BGR2GRAY);
+    };
 
+    //preproceed imgs
+    std::cout << "preproceed imgs." << std::endl;
+    for(int im_num=0;im_num<matVec.size();im_num++)
+    {
+        ////reset for every image
+        num_p_1 = 0;
+        x_int_1 = 0;
+        y_int_1 = 0;
+        capture_1 = false;
+
+        //// Load image and resize to 1280*1024,source img is 2448*2048
+        Mat im = matVec.at(im_num);
 #ifdef BIGIMG
+        Size low_res = cv::Size((int)(im.size().width/2),(int)(im.size().height/2));
+#else
+        Size low_res = cv::Size(PIECEWIDTH,PIECEHEIGHT);
+#endif
+        Mat img_100(low_res,im.depth(),1);
+        if (im.empty())
+        {
+            std::cout << "Cannot open source image!" << std::endl;
+            return -1;
+        }
+        std::cout<<"im source width = "<<im.size().width<<" , "<<" height = "<<im.size().height
+                 <<" , "<<"depth = "<<im.depth()<<" , "<<"channel = "<<im.channels()<<std::endl;
+        //    cv::Mat gray;
+        //    cv::cvtColor(im, gray, CV_BGR2GRAY);
+
     cv::resize(im,img_100,low_res,0,0,CV_INTER_LINEAR);
     std::cout<<"img width = "<<img_100.size().width<<" , "<<" height = "<<img_100.size().height
              <<" , "<<"depth = "<<img_100.depth()<<" , "<<"channel = "<<img_100.channels()<<std::endl;
-    imshow( "source", img_100 );
+#ifdef BIGIMG
     cvSetMouseCallback("source",my_mouse_callback_1,NULL);
-#else
-    img_100 = im.clone();
 #endif
+
 
     ////pick ocr piece
     cv::Mat ocr_piece;
-#ifdef BIGIMG
-    while(num_p_1!=4)
-    {
-      imshow( "source", img_100 );
-      cvWaitKey(10);
-      //          if(char(cvWaitKey(15))==27)break;
-    }
-    if(num_p_1==4)
-    {
-      std::vector<Point2f> obj_corners(4);
-      obj_corners[0] = Point( x_temp_1[0], y_temp_1[0] );
-      obj_corners[1] = Point( x_temp_1[1], y_temp_1[1] );
-      obj_corners[2] = Point( x_temp_1[2], y_temp_1[2] );
-      obj_corners[3] = Point( x_temp_1[3], y_temp_1[3] );
-      Rect roi_rect = Rect(obj_corners[0].x,obj_corners[0].y,
-                           obj_corners[1].x-obj_corners[0].x,
-                           obj_corners[3].y-obj_corners[0].y);
-      img_100(roi_rect).copyTo(ocr_piece);
-      line( img_100 , obj_corners[0], obj_corners[1], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
-      line( img_100 , obj_corners[1], obj_corners[2], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
-      line( img_100 , obj_corners[2], obj_corners[3], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
-      line( img_100 , obj_corners[3], obj_corners[0], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
-    }
+    #ifdef BIGIMG
+        while(num_p_1!=4)
+        {
+          imshow( "source", img_100 );
+          cvWaitKey(10);
+          //          if(char(cvWaitKey(15))==27)break;
+        }
+        if(num_p_1==4)
+        {
+          std::vector<Point2f> obj_corners(4);
+          obj_corners[0] = Point( x_temp_1[0], y_temp_1[0] );
+          obj_corners[1] = Point( x_temp_1[1], y_temp_1[1] );
+          obj_corners[2] = Point( x_temp_1[2], y_temp_1[2] );
+          obj_corners[3] = Point( x_temp_1[3], y_temp_1[3] );
+          Rect roi_rect = Rect(obj_corners[0].x,obj_corners[0].y,
+                               obj_corners[1].x-obj_corners[0].x,
+                               obj_corners[3].y-obj_corners[0].y);
+          img_100(roi_rect).copyTo(ocr_piece);
+          line( img_100 , obj_corners[0], obj_corners[1], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
+          line( img_100 , obj_corners[1], obj_corners[2], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
+          line( img_100 , obj_corners[2], obj_corners[3], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
+          line( img_100 , obj_corners[3], obj_corners[0], Scalar( 0 , 255 , 0 ) , 2 , LINE_AA );
+        }
 
-    ////choice char width and height
-//    num_p_1 = 0;
-//    x_int_1 = 0;
-//    y_int_1 = 0;
-//    capture_1 = false;
-//    imshow( "pick_ocr", ocr_piece );
-//    cvSetMouseCallback("pick_ocr",my_mouse_callback_1,NULL);
-//    while(num_p_1!=4)
-//    {
-//      imshow( "pick_ocr", ocr_piece );
-//      if(char(cvWaitKey(15))==27)break;
-//    }
+        ////choice char width and height
+    //    num_p_1 = 0;
+    //    x_int_1 = 0;
+    //    y_int_1 = 0;
+    //    capture_1 = false;
+    //    imshow( "pick_ocr", ocr_piece );
+    //    cvSetMouseCallback("pick_ocr",my_mouse_callback_1,NULL);
+    //    while(num_p_1!=4)
+    //    {
+    //      imshow( "pick_ocr", ocr_piece );
+    //      if(char(cvWaitKey(15))==27)break;
+    //    }
 
-//    int char_width = 0;
-//    int char_height = 0;
-//    if(num_p_1==4)
-//    {
-//      char_width = x_temp_1[1] - x_temp_1[0];
-//      char_height = y_temp_1[2] - y_temp_1[1];
-//    }
-    cvDestroyWindow("source");
-    cvDestroyWindow("pick_ocr");
-#else
-    ocr_piece = im.clone();
-    while(1)
-    {
-      imshow( "pick_ocr", im );
-      if(char(cvWaitKey(15))==27)break;
-    }
-    cvDestroyWindow("pick_ocr");
-#endif
-
-
-    ////pre-process image
-    clock_t a=clock();
-    TextDetector detector;
-    vector<Mat> single_char_vec;
-    single_char_vec.clear();
-    int char_mat_height = 0;
-    int char_mat_width = 0;
-    vector<Rect> vecContoRect;
-//    detector.segmentSrcSlide(ocr_piece, single_char_vec,char_width,char_height,0,true,char_mat_height,char_mat_width);
-//    Mat single_char_precise(char_mat_height,char_mat_width, CV_8UC1);
-//    detector.segmentSrcPre(ocr_piece);
-//    detector.segmentSobMor(ocr_piece, single_char_vec,vecContoRect,0,false);
-//    detector.segmentSrcMor(ocr_piece, single_char_vec,vecContoRect,0,false);
-      detector.segmentSrcProject(ocr_piece, single_char_vec,0,false);
-//    std::cout<<"ocr_piece_size = "<<ocr_piece.rows<<" * "<<ocr_piece.cols<<std::endl;
-//    std::cout<<"char_width = "<<char_width<<" , "<<"char_height = "<<char_height<<std::endl;
-//    std::cout<<"single_char_amount = "<<single_char_vec.size()<<std::endl;
-//     std::cout<<"char_mat_height = "<<char_mat_height<<" , "<<"char_mat_width = "<<char_mat_width<<std::endl;
-
-
-//    //// slide window identifing single characters
-//    std::string license;
-//#ifdef DEBUG
-//    std::cout<<"single_char_vec.size = "<<single_char_vec.size()<<std::endl;
-//#endif
-//    for(int i=0;i<single_char_vec.size();i++)
-//    {
-//       Mat single_char;
-//       single_char = single_char_vec.at(i);
-//#ifdef DEBUG
+    //    int char_width = 0;
+    //    int char_height = 0;
+    //    if(num_p_1==4)
+    //    {
+    //      char_width = x_temp_1[1] - x_temp_1[0];
+    //      char_height = y_temp_1[2] - y_temp_1[1];
+    //    }
+        cvDestroyWindow("source");
+        cvDestroyWindow("pick_ocr");
+    #else
+        ocr_piece = img_100.clone();
+    #endif
 //        while(1)
 //        {
-//          imshow("single_char",single_char);
+//          imshow( "pick_ocr", ocr_piece );
 //          if(char(cvWaitKey(15))==27)break;
 //        }
-//        std::cout << "chars_identify" << std::endl;
-//#endif
-//        cv::Mat idx;
-//        findNonZero(single_char, idx);
-//        int one_count = (int)idx.total();
-//        int zero_count = (int)single_char.total() - one_count;
-//        float one_percent = (float)one_count/(float)(one_count+zero_count);
-////            std::cout<<"one_count = "<<one_count<<std::endl;
-////            std::cout<<"zero_count = "<<zero_count<<std::endl;
-////            std::cout<<"one_percent = "<<one_percent<<std::endl;
-//        int rows_ = i/char_mat_width;
-//        int cols_ = i - rows_*char_mat_width;
-//        if(one_percent>0.1)
-//        {
-//            auto block = single_char;
-//            float maxValue_;
-//            int maxValue_int;
-//            auto character = CharsIdentify::instance()->identify(block, maxValue_,false);
-//            if(maxValue_>1.0)
-//            {
-//                maxValue_int = 255;
-//            }
-//            else if(maxValue_<0.0)
-//            {
-//                maxValue_int = 0;
-//            }
-//            else
-//            {
-//                maxValue_int = (int)(maxValue_*255);
-//            }
-////            std::cout<<"maxValue_int = "<<maxValue_int<<std::endl;
-////            std::cout<<"rows = "<<rows_<<" , "<<"cols = "<<cols_<<std::endl;
-
-
-//            if(character.second!="NAN")
-//            {
-//                license.append(character.second);
-//                single_char_precise.at<uchar>(rows_,cols_) = maxValue_int;
-//            }
-//            else
-//            {
-//                 single_char_precise.at<uchar>(rows_,cols_) = 0;
-//            }
-//        }
-//        else
-//        {
-//            single_char_precise.at<uchar>(rows_,cols_) = 0;
-//        }
-
-
-//#ifdef DEBUG
-//        std::cout << "CharIdentify: " << character.second << std::endl;
-//#endif
-//    }
-//    std::cout<<"ocr_piece_size = "<<ocr_piece.rows<<" * "<<ocr_piece.cols<<std::endl;
-//    std::cout<<"char_width = "<<char_width<<" , "<<"char_height = "<<char_height<<std::endl;
-//    std::cout<<"single_char_amount = "<<single_char_vec.size()<<std::endl;
-//    std::cout<<"char_mat_height = "<<char_mat_height<<" , "<<"char_mat_width = "<<char_mat_width<<std::endl;
-//    std::cout << "plateIdentify: " << license << std::endl;
-
-//    Mat single_char_precise_zoom;
-//    resize(single_char_precise,single_char_precise_zoom,cv::Size((int)(ocr_piece.size().width),(int)(ocr_piece.size().height)));
-//    while(1)
-//    {
-//      imshow( "single_char_precise", single_char_precise_zoom );
-//      imshow( "pick_ocr", ocr_piece );
-//      if(char(cvWaitKey(15))==27)break;
-//    }
-//    cvDestroyWindow("single_char_precise");
-//    cvDestroyWindow("pick_ocr");
+//        cvDestroyWindow("pick_ocr");
 
 
 
 
-    //// identifing single characters
-    std::string license;
-#ifdef DEBUG
-    std::cout<<"single_char_vec.size = "<<single_char_vec.size()<<std::endl;
-#endif
-    for(int i=0;i<single_char_vec.size();i++)
-    {
-       Mat single_char;
-       single_char = single_char_vec.at(i);
-#ifdef DEBUG
-        while(1)
-        {
-          imshow("single_char",single_char);
-          if(char(cvWaitKey(15))==27)break;
-        }
-#endif
-        auto block = single_char;
-        float maxValue_;
-        auto character = CharsIdentify::instance()->identify(block, maxValue_,false);
-        if(character.second!="NAN")
-        {
-            license.append(character.second);
-        }
 
-#ifdef DEBUG
-        std::cout << "CharIdentify: " << character.second << std::endl;
-#endif
+        ////pre-process image
+        clock_t a=clock();
+        TextDetector detector;
+        vector<Mat> single_char_vec;
+        single_char_vec.clear();
+        int char_mat_height,char_mat_width;
+        vector<Rect> vecContoRect;
+//        detector.segmentSrcSlide(ocr_piece, single_char_vec,char_width,char_height,0,true,char_mat_height,char_mat_width);
+//        Mat single_char_precise(char_mat_height,char_mat_width, CV_8UC1);
+//        detector.segmentSrcMor(ocr_piece, single_char_vec,im_num,true);
+//        detector.segmentSrcPre(ocr_piece);
+//        detector.segmentSobMor(ocr_piece, single_char_vec,vecContoRect,im_num,false);
+//        detector.segmentSrcMor(ocr_piece, single_char_vec,vecContoRect,im_num,false);
+         detector.segmentSrcProject(ocr_piece, single_char_vec);
+
+
+         //// identifing single characters
+         std::string license;
+     #ifdef DEBUG
+         std::cout<<"single_char_vec.size = "<<single_char_vec.size()<<std::endl;
+     #endif
+         for(int i=0;i<single_char_vec.size();i++)
+         {
+            Mat single_char;
+            single_char = single_char_vec.at(i);
+     #ifdef DEBUG
+             while(1)
+             {
+               imshow("single_char",single_char);
+               if(char(cvWaitKey(15))==27)break;
+             }
+             cvDestroyWindow("single_char");
+     #endif
+             auto block = single_char;
+             float maxValue_;
+             auto character = CharsIdentify::instance()->identify(block, maxValue_,false);
+             if(character.second!="NAN")
+             {
+                 license.append(character.second);
+             }
+
+     #ifdef DEBUG
+             std::cout << "CharIdentify: " << character.second << std::endl;
+             while(1)
+             {
+               imshow( "single_char", single_char );
+               if(char(cvWaitKey(15))==27)break;
+             }
+             cvDestroyWindow("single_char");
+     #endif
+         }
+         std::cout << "PlantIdentify: " << license << std::endl;
+         clock_t b=clock();
+         cout<<"time cost = "<<1000*(double)(b - a) / CLOCKS_PER_SEC<<" ms "<<endl;
+         while(1)
+         {
+           imshow( "pick_ocr", ocr_piece );
+           if(char(cvWaitKey(15))==27)break;
+         }
+         cvDestroyWindow("pick_ocr");
+
+         std::cout<<"***********************************************************"<<std::endl;
+
     }
-    std::cout << "PlantIdentify: " << license << std::endl;
-    clock_t b=clock();
-    cout<<"time cost = "<<1000*(double)(b - a) / CLOCKS_PER_SEC<<" ms "<<endl;
-
-    cvDestroyWindow("single_char");
     return 0;
 }
 

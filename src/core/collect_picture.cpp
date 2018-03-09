@@ -75,7 +75,7 @@ int CollectPic::imgCollect()
 { 
     //load raw img data.
     std::cout<<"load img from raw_img file."<<std::endl;
-    int number_for_count = 350;
+    int number_for_count = 2050;
     std::vector<cv::Mat> matVec;
     matVec.reserve(number_for_count);
     if(cdata(matVec)!=0)
@@ -87,6 +87,7 @@ int CollectPic::imgCollect()
     std::cout << "preproceed imgs." << std::endl;
     for(int im_num=0;im_num<matVec.size();im_num++)
     {
+        std::cout<<"images num = "<<im_num<<std::endl;
         ////reset for every image
         num_p_2 = 0;
         x_int_2 = 0;
@@ -104,6 +105,7 @@ int CollectPic::imgCollect()
         if (im.empty())
         {
             std::cout << "Cannot open source image!" << std::endl;
+            std::cout<<"total images num = "<<im_num<<std::endl;
             return -1;
         }
         std::cout<<"im source width = "<<im.size().width<<" , "<<" height = "<<im.size().height
@@ -169,11 +171,11 @@ int CollectPic::imgCollect()
         cvDestroyWindow("pick_ocr");
     #else
         ocr_piece = img_100.clone();
-        while(1)
-        {
-          imshow( "pick_ocr", ocr_piece );
-          if(char(cvWaitKey(15))==27)break;
-        }
+//        while(1)
+//        {
+//          imshow( "pick_ocr", ocr_piece );
+//          if(char(cvWaitKey(15))==27)break;
+//        }
         cvDestroyWindow("pick_ocr");
     #endif
 
@@ -191,7 +193,7 @@ int CollectPic::imgCollect()
 //        detector.segmentSrcPre(ocr_piece);
 //        detector.segmentSobMor(ocr_piece, single_char_vec,vecContoRect,im_num,false);
 //        detector.segmentSrcMor(ocr_piece, single_char_vec,vecContoRect,im_num,false);
-         detector.segmentSrcProject(ocr_piece, single_char_vec,0,true);
+         detector.segmentSrcProject(ocr_piece, single_char_vec);
 
 
 
