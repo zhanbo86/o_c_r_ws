@@ -2207,7 +2207,7 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
 //    itc_mm = contours.begin();
 //    while (itc_mm!=contours.end())
 //    {
-//        //计算轮廓的质心
+//        //caculate contours mass center
 //        vector<Point>::iterator itc_p = (*itc_mm).begin();
 //        bool edge_cont = false;
 //        Moments mu=  moments( *itc_mm, false );
@@ -2301,21 +2301,17 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
 
 
     ////rotation estimate and rotation rectify
-    //建立储存边缘检测结果图像canImage
     Mat canImage(cv::Size(charRow.cols,charRow.rows),IPL_DEPTH_8U,1);
-    //进行边缘检测
     Canny(charRow,canImage,30,200,3);
-    //进行hough变换
     vector<Vec2f> lines;
     HoughLines(canImage, lines, 1, CV_PI / 180, 30, 0, 0);
-    //统计与竖直夹角<10度的直线个数以及其夹角和
     int numLine=0;
     float sumAng=0.0;
     Mat charRowRGB(cv::Size(charRow.cols,charRow.rows),charRow.depth(),3);
     cvtColor(charRow,charRowRGB,CV_GRAY2RGB);
     for(int i=0;i<lines.size();i++)
     {
-        float theta=lines[i][1];  //获取角度 为弧度制
+        float theta=lines[i][1];
         float rho = lines[i][0];
         if(theta>=0&&theta<15*CV_PI/180)
         {
