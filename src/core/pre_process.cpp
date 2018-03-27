@@ -1213,12 +1213,15 @@ void segmentAnalyse(vector<char_range_t> &peek_range_v,vector<char_range_t> &cha
             for(int i =1;i<peek_range_v.size();i++)
             {
                 int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+//                printf("peek_gap = %d\n",peek_rang_gap);
                 if(peek_rang_gap<min_gap)
                 {
                     min_gap = peek_rang_gap;
                     min_gap_num = i-1;
                 }
             }
+//            printf("min_gap = %d, min_gap_num = %d\n",min_gap,min_gap_num);
+
 
             for(int i=0;i<peek_range_v.size();i++)
             {
@@ -1235,6 +1238,7 @@ void segmentAnalyse(vector<char_range_t> &peek_range_v,vector<char_range_t> &cha
                     char_rang.push_back(peek_range_v.at(i));
                 }
             }
+//            printf("char_rang.size = %d\n",char_rang.size());
         }
         break;
     case 6:
@@ -1605,9 +1609,12 @@ void segmentAnalyse(vector<char_range_t> &peek_range_v,vector<char_range_t> &cha
             int min_gap4_num = 0;
             int min_gap5_num = 0;
             int min_gap6_num = 0;
+
+            //find the shortest
             for(int i =1;i<peek_range_v.size();i++)
             {
                 int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+//                printf("peek_gap = %d\n",peek_rang_gap);
                 if(peek_rang_gap<min_gap_1)
                 {
                     min_gap_1 = peek_rang_gap;
@@ -1744,9 +1751,12 @@ void segmentAnalyse(vector<char_range_t> &peek_range_v,vector<char_range_t> &cha
             int min_gap5_num = 0;
             int min_gap6_num = 0;
             int min_gap7_num = 0;
+
+            //find the shortest
             for(int i =1;i<peek_range_v.size();i++)
             {
                 int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+//                printf("peek_gap = %d\n",peek_rang_gap);
                 if(peek_rang_gap<min_gap_1)
                 {
                     min_gap_1 = peek_rang_gap;
@@ -1840,6 +1850,16 @@ void segmentAnalyse(vector<char_range_t> &peek_range_v,vector<char_range_t> &cha
                 }
             }
 
+
+//            printf("min_gap_1 = %d, min_gap1_num = %d\n",min_gap_1,min_gap1_num);
+//            printf("min_gap_2 = %d, min_gap2_num = %d\n",min_gap_2,min_gap2_num);
+//            printf("min_gap_3 = %d, min_gap3_num = %d\n",min_gap_3,min_gap3_num);
+//            printf("min_gap_4 = %d, min_gap4_num = %d\n",min_gap_4,min_gap4_num);
+//            printf("min_gap_5 = %d, min_gap5_num = %d\n",min_gap_5,min_gap5_num);
+//            printf("min_gap_6 = %d, min_gap5_num = %d\n",min_gap_6,min_gap6_num);
+//            printf("min_gap_7 = %d, min_gap5_num = %d\n",min_gap_7,min_gap7_num);
+
+
             for(int i=0;i<peek_range_v.size();i++)
             {
                 if((((i==min_gap1_num)&&(i+1==min_gap2_num))||((i==min_gap2_num)&&(i+1==min_gap1_num)))
@@ -1885,6 +1905,7 @@ void segmentAnalyse(vector<char_range_t> &peek_range_v,vector<char_range_t> &cha
                     char_rang.push_back(peek_range_v.at(i));
                 }
             }
+//            printf("char_rang.size = %d\n",char_rang.size());
         }
         break;
     case 12:
@@ -1905,9 +1926,13 @@ void segmentAnalyse(vector<char_range_t> &peek_range_v,vector<char_range_t> &cha
             int min_gap6_num = 0;
             int min_gap7_num = 0;
             int min_gap8_num = 0;
+
+
+            //find the shortest
             for(int i =1;i<peek_range_v.size();i++)
             {
                 int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+//                printf("peek_gap = %d\n",peek_rang_gap);
                 if(peek_rang_gap<min_gap_1)
                 {
                     min_gap_1 = peek_rang_gap;
@@ -2179,40 +2204,40 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
     }
 
     // edge contours
-    itc_mm = contours.begin();
-    while (itc_mm!=contours.end())
-    {
-        //计算轮廓的质心
-        vector<Point>::iterator itc_p = (*itc_mm).begin();
-        bool edge_cont = false;
-        Moments mu=  moments( *itc_mm, false );
-        Point2f mc = Point2f( mu.m10/mu.m00 , mu.m01/mu.m00 );
+//    itc_mm = contours.begin();
+//    while (itc_mm!=contours.end())
+//    {
+//        //计算轮廓的质心
+//        vector<Point>::iterator itc_p = (*itc_mm).begin();
+//        bool edge_cont = false;
+//        Moments mu=  moments( *itc_mm, false );
+//        Point2f mc = Point2f( mu.m10/mu.m00 , mu.m01/mu.m00 );
 
-        while(itc_p!=(*itc_mm).end())
-        {
-           if((itc_p->x<=2)||(itc_p->x>=thres_window.cols - 2)||(itc_p->y<=2)||(itc_p->y>=thres_window.rows - 2))
-           {
-               edge_cont = true;
-               break;
-           }
-           else
-           {
-               itc_p++;
-           }
-        }
-//        std::cout<<"edge_cout = "<<edge_cont<<std::endl;
-//        std::cout<<"mc = "<<mc.x<<" , "<<mc.y<<std::endl;
-        if(edge_cont&&((mc.x<0.05*open_src.cols)||(mc.x>0.95*open_src.cols)||(mc.y<0.03*open_src.rows)||(mc.y>0.97*open_src.rows)))
-        {
-             contours_remove.push_back(*itc_mm);
-             itc_mm = contours.erase(itc_mm);
-#ifdef DEBUG
-             std::cout<<"erase this contour for edge !!!"<<std::endl;
-#endif
-        }
-        else
-            ++itc_mm;
-    }
+//        while(itc_p!=(*itc_mm).end())
+//        {
+//           if((itc_p->x<=2)||(itc_p->x>=thres_window.cols - 2)||(itc_p->y<=2)||(itc_p->y>=thres_window.rows - 2))
+//           {
+//               edge_cont = true;
+//               break;
+//           }
+//           else
+//           {
+//               itc_p++;
+//           }
+//        }
+////        std::cout<<"edge_cout = "<<edge_cont<<std::endl;
+////        std::cout<<"mc = "<<mc.x<<" , "<<mc.y<<std::endl;
+//        if(edge_cont&&((mc.x<0.03*open_src.cols)||(mc.x>0.97*open_src.cols)||(mc.y<0.03*open_src.rows)||(mc.y>0.97*open_src.rows)))
+//        {
+//             contours_remove.push_back(*itc_mm);
+//             itc_mm = contours.erase(itc_mm);
+//#ifdef DEBUG
+//             std::cout<<"erase this contour for edge !!!"<<std::endl;
+//#endif
+//        }
+//        else
+//            ++itc_mm;
+//    }
 
     /// isolate contours
     if(contours.size()!=1)
@@ -2261,7 +2286,7 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
 #endif
 
 
-    ////get project
+
     //row segment
     Mat charRow,charRowTem;
     segmentRow(open_src,charRowTem,0.12);
@@ -2292,7 +2317,7 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
     {
         float theta=lines[i][1];  //获取角度 为弧度制
         float rho = lines[i][0];
-        if(theta>=0&&theta<5*CV_PI/180)
+        if(theta>=0&&theta<15*CV_PI/180)
         {
             Point pt1, pt2;
             //cout << theta << endl;
@@ -2423,46 +2448,57 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
 
     ////seperate big char(connect char)
     vector<Rect> vecRect;
-    for(int i = 0;i<vecRect_temp.size();i++)
+    if(vecRect_temp.size()<4)
     {
-        if(vecRect_temp.at(i).width>=0.75*PIECEWIDTH)//4 char connect
+        for(int i = 0;i<vecRect_temp.size();i++)
         {
-            int piece4 = vecRect_temp.at(i).width/4;
-            int piece_h = vecRect_temp.at(i).height;
-            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece4,piece_h);
-            Rect charRec2(vecRect_temp.at(i).x+1*piece4,vecRect_temp.at(i).y,piece4,piece_h);
-            Rect charRec3(vecRect_temp.at(i).x+2*piece4,vecRect_temp.at(i).y,piece4,piece_h);
-            Rect charRec4(vecRect_temp.at(i).x+3*piece4,vecRect_temp.at(i).y,piece4,piece_h);
-            vecRect.push_back(charRec1);
-            vecRect.push_back(charRec2);
-            vecRect.push_back(charRec3);
-            vecRect.push_back(charRec4);
+            if(vecRect_temp.at(i).width>=0.75*PIECEWIDTH)//4 char connect
+            {
+                int piece4 = vecRect_temp.at(i).width/4;
+                int piece_h = vecRect_temp.at(i).height;
+                Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece4,piece_h);
+                Rect charRec2(vecRect_temp.at(i).x+1*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+                Rect charRec3(vecRect_temp.at(i).x+2*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+                Rect charRec4(vecRect_temp.at(i).x+3*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+                vecRect.push_back(charRec1);
+                vecRect.push_back(charRec2);
+                vecRect.push_back(charRec3);
+                vecRect.push_back(charRec4);
+            }
+            else if(vecRect_temp.at(i).width>=0.55*PIECEWIDTH)//3 char connect
+            {
+                int piece3 = vecRect_temp.at(i).width/3;
+                int piece_h = vecRect_temp.at(i).height;
+                Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece3,piece_h);
+                Rect charRec2(vecRect_temp.at(i).x+1*piece3,vecRect_temp.at(i).y,piece3,piece_h);
+                Rect charRec3(vecRect_temp.at(i).x+2*piece3,vecRect_temp.at(i).y,piece3,piece_h);
+                vecRect.push_back(charRec1);
+                vecRect.push_back(charRec2);
+                vecRect.push_back(charRec3);
+            }
+            else if(vecRect_temp.at(i).width>=0.35*PIECEWIDTH)//2 char connect
+            {
+                int piece2 = vecRect_temp.at(i).width/2;
+                int piece_h = vecRect_temp.at(i).height;
+                Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece2,piece_h);
+                Rect charRec2(vecRect_temp.at(i).x+1*piece2,vecRect_temp.at(i).y,piece2,piece_h);
+                vecRect.push_back(charRec1);
+                vecRect.push_back(charRec2);
+            }
+            else
+            {
+                vecRect.push_back(vecRect_temp.at(i));
+            }
         }
-        else if(vecRect_temp.at(i).width>=0.55*PIECEWIDTH)//3 char connect
-        {
-            int piece3 = vecRect_temp.at(i).width/3;
-            int piece_h = vecRect_temp.at(i).height;
-            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece3,piece_h);
-            Rect charRec2(vecRect_temp.at(i).x+1*piece3,vecRect_temp.at(i).y,piece3,piece_h);
-            Rect charRec3(vecRect_temp.at(i).x+2*piece3,vecRect_temp.at(i).y,piece3,piece_h);
-            vecRect.push_back(charRec1);
-            vecRect.push_back(charRec2);
-            vecRect.push_back(charRec3);
-        }
-        else if(vecRect_temp.at(i).width>=0.35*PIECEWIDTH)//2 char connect
-        {
-            int piece2 = vecRect_temp.at(i).width/2;
-            int piece_h = vecRect_temp.at(i).height;
-            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece2,piece_h);
-            Rect charRec2(vecRect_temp.at(i).x+1*piece2,vecRect_temp.at(i).y,piece2,piece_h);
-            vecRect.push_back(charRec1);
-            vecRect.push_back(charRec2);
-        }
-        else
+    }
+    else
+    {
+        for(int i = 0;i<vecRect_temp.size();i++)
         {
             vecRect.push_back(vecRect_temp.at(i));
         }
     }
+
 
     ////save single char image after segment
     for(int char_num=0;char_num<vecRect.size();char_num++)

@@ -36,7 +36,7 @@ int main(int argc, const char* argv[])
           break;
         case 3:
           {
-             CharRecog ocr_recog("../../../src/easyocr/bometTest/batch3");
+             CharRecog ocr_recog("../../../src/easyocr/bometTest/batch4");
              ocr_recog.charRecognise();
           }
           break;
