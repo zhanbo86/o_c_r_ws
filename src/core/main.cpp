@@ -23,20 +23,20 @@ int main(int argc, const char* argv[])
       switch (select) {
         case 1:
           {
-             CollectPic picture_ocr("../../../src/easyocr/raw_img");
+             CollectPic picture_ocr("../../../src/easyocr/raw_img/val_2");
              picture_ocr.imgCollect();
           }
           break;
         case 2:
           std::cout << "Run \"demo ann\" for more usage." << std::endl;
           {
-            easyocr::AnnTrain ann("../../../src/easyocr/train_set/char2", "../../../src/easyocr/train_set/ann.xml");
+            easyocr::AnnTrain ann("../../../src/easyocr/train_set/char3_mul", "../../../src/easyocr/train_set/ann.xml");
             ann.train();
           }
           break;
         case 3:
           {
-             CharRecog ocr_recog("../../../src/easyocr/bometTest");
+             CharRecog ocr_recog("../../../src/easyocr/bometTest/batch3");
              ocr_recog.charRecognise();
           }
           break;

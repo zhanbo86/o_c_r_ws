@@ -101,7 +101,9 @@ int CollectPic::imgCollect()
 #else
         Size low_res = cv::Size(PIECEWIDTH,PIECEHEIGHT);
 #endif
-        Mat img_100(low_res,im.depth(),1);
+//        Mat img_100(low_res,im.depth(),1);//modify on 0309
+        Mat img_100;//modify on 0309
+        im.copyTo(img_100);//modify on 0309
         if (im.empty())
         {
             std::cout << "Cannot open source image!" << std::endl;
@@ -113,7 +115,7 @@ int CollectPic::imgCollect()
         //    cv::Mat gray;
         //    cv::cvtColor(im, gray, CV_BGR2GRAY);
 
-    cv::resize(im,img_100,low_res,0,0,CV_INTER_LINEAR);
+//    cv::resize(im,img_100,low_res,0,0,CV_INTER_LINEAR);//modify on 0309
     std::cout<<"img width = "<<img_100.size().width<<" , "<<" height = "<<img_100.size().height
              <<" , "<<"depth = "<<img_100.depth()<<" , "<<"channel = "<<img_100.channels()<<std::endl;
 #ifdef BIGIMG
@@ -176,7 +178,7 @@ int CollectPic::imgCollect()
 //          imshow( "pick_ocr", ocr_piece );
 //          if(char(cvWaitKey(15))==27)break;
 //        }
-        cvDestroyWindow("pick_ocr");
+//        cvDestroyWindow("pick_ocr");
     #endif
 
 
@@ -194,6 +196,8 @@ int CollectPic::imgCollect()
 //        detector.segmentSobMor(ocr_piece, single_char_vec,vecContoRect,im_num,false);
 //        detector.segmentSrcMor(ocr_piece, single_char_vec,vecContoRect,im_num,false);
          detector.segmentSrcProject(ocr_piece, single_char_vec);
+         single_char_vec.clear();//modify on 0309
+         single_char_vec.push_back(ocr_piece);//modify on 0309
 
 
 
@@ -210,7 +214,8 @@ int CollectPic::imgCollect()
             single_char = single_char_vec.at(char_num);
              const char* single_char_folder_ = "../../../src/easyocr/char_img";
              std::stringstream ss(std::stringstream::in | std::stringstream::out);
-             ss << single_char_folder_ << "/" << im_num << "_src" << char_num<<"_"<<rand()<< ".jpg";
+//             ss << single_char_folder_ << "/" << im_num << "_src" << char_num<<"_"<<rand()<< ".jpg";
+             ss << single_char_folder_ << "/" << im_num<<"a.jpg";
              imwrite(ss.str(),single_char);
          }
     }

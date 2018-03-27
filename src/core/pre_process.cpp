@@ -19,7 +19,7 @@ cv::Mat TextDetector::preProcess(cv::Mat &image){
 }
 
 
-void TextDetector::segmentRow(cv::Mat &open_src_in,cv::Mat &gray_src_in, cv::Mat &out, float gap=0.08)
+void TextDetector::segmentRow(cv::Mat &open_src_in,cv::Mat &out,float gap)
 {
     vector<int> pos_h;
     pos_h.resize(open_src_in.rows,0);
@@ -27,7 +27,7 @@ void TextDetector::segmentRow(cv::Mat &open_src_in,cv::Mat &gray_src_in, cv::Mat
     char_range_t main_peek_rang_h;
     GetTextProjection(open_src_in,pos_h,H_PROJECT);
     draw_projection(pos_h,H_PROJECT);
-    GetPeekRange(pos_h,peek_range_h,1,2);
+    GetPeekRange(pos_h,peek_range_h,2,5);
     //connect neighgour peek
 #ifdef DEBUG
     std::cout<<"peek_range.size = "<<peek_range_h.size()<<std::endl;
@@ -40,48 +40,54 @@ void TextDetector::segmentRow(cv::Mat &open_src_in,cv::Mat &gray_src_in, cv::Mat
         }
     }
 
-    for(int i =0;i<peek_range_h.size()-1;i++)
-    {
-#ifdef DEBUG
-        std::cout<<"peek_range = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
-#endif
-        int peek_rang = peek_range_h.at(i).end - peek_range_h.at(i).begin;
-        int peek_rang_next = peek_range_h.at(i+1).end - peek_range_h.at(i+1).begin;
-        int peek_rang_gap = peek_range_h.at(i+1).begin - peek_range_h.at(i).end;
-        if((peek_rang>0.01*PIECEHEIGHT)&&(peek_rang_next>0.01*PIECEHEIGHT)&&(peek_range_h.at(i+1).end<0.95*PIECEHEIGHT)
-                &&(peek_range_h.at(i).begin>0.05*PIECEHEIGHT))
-        {
-           if(peek_rang_gap <gap*PIECEHEIGHT)//gap distance
-           {
-               peek_range_h.at(i+1).begin = peek_range_h.at(i).begin;
-               peek_range_h.at(i+1).end = peek_range_h.at(i+1).end;
-           }
-        }
-    }
+
+    //connect two neighbour ranges when their distance is shorter than a threshould
+//    for(int i =0;i<peek_range_h.size()-1;i++)
+//    {
+//#ifdef DEBUG
+//        std::cout<<"peek_range = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
+//#endif
+//        int peek_rang = peek_range_h.at(i).end - peek_range_h.at(i).begin;
+//        int peek_rang_next = peek_range_h.at(i+1).end - peek_range_h.at(i+1).begin;
+//        int peek_rang_gap = peek_range_h.at(i+1).begin - peek_range_h.at(i).end;
+//        if((peek_rang>0.01*PIECEHEIGHT)&&(peek_rang_next>0.01*PIECEHEIGHT)&&(peek_range_h.at(i+1).end<0.95*PIECEHEIGHT)
+//                &&(peek_range_h.at(i).begin>0.05*PIECEHEIGHT))
+//        {
+//           if(peek_rang_gap <gap*PIECEHEIGHT)//gap distance
+//           {
+//               peek_range_h.at(i+1).begin = peek_range_h.at(i).begin;
+//               peek_range_h.at(i+1).end = peek_range_h.at(i+1).end;
+//           }
+//        }
+//    }
+
+
     //find main peek
-    main_peek_rang_h = peek_range_h.at(0);
-    int peek_main_scale = main_peek_rang_h.end - main_peek_rang_h.begin;
+    main_peek_rang_h.begin = peek_range_h.at(0).begin;
+    main_peek_rang_h.end = peek_range_h.at(peek_range_h.size()-1).end;
+//    main_peek_rang_h = peek_range_h.at(0);
+//    int peek_main_scale = main_peek_rang_h.end - main_peek_rang_h.begin;
 #ifdef DEBUG
     std::cout<<"peek_range after connect.size = "<<peek_range_h.size()<<std::endl;
 #endif
-    for(int i =0;i<peek_range_h.size();i++)
-    {
-        #ifdef DEBUG
-        std::cout<<"peek_range after connect = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
-        #endif
-        int peek_scale = peek_range_h.at(i).end - peek_range_h.at(i).begin;
-        if(peek_scale>peek_main_scale)
-        {
-            main_peek_rang_h = peek_range_h.at(i);
-            peek_main_scale = main_peek_rang_h.end - main_peek_rang_h.begin;
-        }
-    }
+//    //find the longest peek
+//    for(int i =0;i<peek_range_h.size();i++)
+//    {
+//        #ifdef DEBUG
+//        std::cout<<"peek_range after connect = "<< peek_range_h.at(i).begin<<" ~ "<< peek_range_h.at(i).end<<std::endl;
+//        #endif
+//        int peek_scale = peek_range_h.at(i).end - peek_range_h.at(i).begin;
+//        if(peek_scale>peek_main_scale)
+//        {
+//            main_peek_rang_h = peek_range_h.at(i);
+//            peek_main_scale = main_peek_rang_h.end - main_peek_rang_h.begin;
+//        }
+//    }
 #ifdef DEBUG
     std::cout<<"main_peek_rang_h = "<<main_peek_rang_h.begin<<" ~ "<<main_peek_rang_h.end<<std::endl;
 #endif
     Rect mainRow(0,main_peek_rang_h.begin,open_src_in.cols,main_peek_rang_h.end-main_peek_rang_h.begin);
-//    Mat charRow(open_src_in, mainRow);
-    Mat charRow(gray_src_in, mainRow);//modify on 20180308
+    Mat charRow(open_src_in, mainRow);//modify on 0309
     out = charRow;
 }
 
@@ -215,7 +221,7 @@ void TextDetector::draw_projection(vector<int>& pos,int mode)
           imshow("verticle projection", project);
           if(char(cvWaitKey(15))==27)break;
         }
-        cvDestroyWindow("verticle projection");
+//        cvDestroyWindow("verticle projection");
 #endif
     }
 }
@@ -484,7 +490,8 @@ void TextDetector::removeIsoContour(vector<vector<Point> > &contours,vector<vect
     while (itc != contours.end())
     {
         Rect mr = boundingRect(Mat(*itc));
-        Rect mr_3zoom = rectCenterScale(mr,Size(9*mr.width,2*mr.height));
+//        Rect mr_3zoom = rectCenterScale(mr,Size(9*mr.width,2*mr.height));
+        Rect mr_3zoom = rectCenterScale(mr,Size(10*mr.width,5*mr.height));
         itc_next = contours.begin();
         long int mr_cross_acc_width = 0;
         long int mr_cross_acc_height = 0;
@@ -673,7 +680,6 @@ void TextDetector::segmentSrcPre(cv::Mat &spineGray)
     cv::Mat thres_window = thresh_src.clone();
 
 
-    std::cout<<"it is ok!!!"<<std::endl;
 
     ////find contours
     Mat img_contours;
@@ -1147,13 +1153,937 @@ void TextDetector::segmentSobMor(cv::Mat &spineGray, vector<Mat> &single_char_ve
 
 }
 
+void DrawBox(CvBox2D box,IplImage* img)
+{
+     CvPoint2D32f point[4];
+     int i;
+     for ( i=0; i<4; i++)
+     {
+         point[i].x = 0;
+         point[i].y = 0;
+    }
+     cvBoxPoints(box, point); //计算二维盒子顶点
+    CvPoint pt[4];
+    for ( i=0; i<4; i++)
+    {
+        pt[i].x = (int)point[i].x;
+        pt[i].y = (int)point[i].y;
+    }
+    cvLine( img, pt[0], pt[1],CV_RGB(255,0,0), 2, 8, 0 );
+    cvLine( img, pt[1], pt[2],CV_RGB(255,0,0), 2, 8, 0 );
+    cvLine( img, pt[2], pt[3],CV_RGB(255,0,0), 2, 8, 0 );
+    cvLine( img, pt[3], pt[0],CV_RGB(255,0,0), 2, 8, 0 );
+}
+
+
+//void drawDetectLines(Mat& image,const vector<Vec4i>& lines,Scalar  color)
+//{
+//    // 将检测到的直线在图上画出来
+//    vector<Vec4i>::const_iterator it=lines.begin();
+//    while(it!=lines.end())
+//    {
+//        Point pt1((*it)[0],(*it)[1]);
+//        Point pt2((*it)[2],(*it)[3]);
+//        line(image,pt1,pt2,color,2); //  线条宽度设置为2
+//        ++it;
+//    }
+//}
+
+
+// rotate an image
+void rotateImg(Mat source, Mat& img_rotate,float angle){
+  Point2f src_center(source.cols / 2.0F, source.rows / 2.0F);
+  Mat rot_mat = getRotationMatrix2D(src_center, angle, 1.0);
+  cv::Rect bbox = cv::RotatedRect(src_center, source.size(), angle).boundingRect();
+  rot_mat.at<double>(0, 2) += bbox.width / 2.0 - src_center.x;
+  rot_mat.at<double>(1, 2) += bbox.height / 2.0 - src_center.y;
+  warpAffine(source, img_rotate, rot_mat, bbox.size(), CV_INTER_LINEAR, 0);
+}
+
+void segmentAnalyse(vector<char_range_t> &peek_range_v,vector<char_range_t> &char_rang)
+{
+    int peek_num = peek_range_v.size();
+    printf("peek_num = %d\n",peek_num);
+
+    switch (peek_num) {
+    case 5:
+        {
+            int min_gap = 200;
+            int min_gap_num = 0;
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                if(peek_rang_gap<min_gap)
+                {
+                    min_gap = peek_rang_gap;
+                    min_gap_num = i-1;
+                }
+            }
+
+            for(int i=0;i<peek_range_v.size();i++)
+            {
+                if(i==min_gap_num)
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+1).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                }
+                else
+                {
+                    char_rang.push_back(peek_range_v.at(i));
+                }
+            }
+        }
+        break;
+    case 6:
+        {
+            int min_gap_1 = 200;
+            int min_gap_2 = 200;
+            int min_gap1_num = 0;
+            int min_gap2_num = 0;
+
+            //find the shortest
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                if(peek_rang_gap<min_gap_1)
+                {
+                    min_gap_1 = peek_rang_gap;
+                    min_gap1_num = i-1;
+                }
+            }
+
+            //find the second shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if(i!=min_gap1_num+1)
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_2)
+                    {
+                        min_gap_2 = peek_rang_gap;
+                        min_gap2_num = i-1;
+                    }
+                }
+            }
+
+            for(int i=0;i<peek_range_v.size();i++)
+            {
+                if(((i==min_gap1_num)&&(i+1==min_gap2_num))||((i==min_gap2_num)&&(i+1==min_gap1_num)))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+2).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                    i++;
+                }
+                else if((i==min_gap1_num)||(i==min_gap2_num))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+1).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                }
+                else
+                {
+                    char_rang.push_back(peek_range_v.at(i));
+                }
+            }
+        }
+        break;
+    case 7:
+        {
+            int min_gap_1 = 200;
+            int min_gap_2 = 200;
+            int min_gap_3 = 200;
+            int min_gap1_num = 0;
+            int min_gap2_num = 0;
+            int min_gap3_num = 0;
+            //find the shortest
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                if(peek_rang_gap<min_gap_1)
+                {
+                    min_gap_1 = peek_rang_gap;
+                    min_gap1_num = i-1;
+                }
+            }
+
+            //find the second shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if(i!=min_gap1_num+1)
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_2)
+                    {
+                        min_gap_2 = peek_rang_gap;
+                        min_gap2_num = i-1;
+                    }
+                }
+            }
+
+            //find the third shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_3)
+                    {
+                        min_gap_3 = peek_rang_gap;
+                        min_gap3_num = i-1;
+                    }
+                }
+            }
+
+
+
+            for(int i=0;i<peek_range_v.size();i++)
+            {
+                if((((i==min_gap1_num)&&(i+1==min_gap2_num))||((i==min_gap2_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap2_num))))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+2).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                    i++;
+                }
+                else if((i==min_gap1_num)||(i==min_gap2_num)||(i==min_gap3_num))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+1).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                }
+                else
+                {
+                    char_rang.push_back(peek_range_v.at(i));
+                }
+            }
+        }
+        break;
+    case 8:
+        {
+            int min_gap_1 = 200;
+            int min_gap_2 = 200;
+            int min_gap_3 = 200;
+            int min_gap_4 = 200;
+            int min_gap1_num = 0;
+            int min_gap2_num = 0;
+            int min_gap3_num = 0;
+            int min_gap4_num = 0;
+
+            //find the shortest
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                if(peek_rang_gap<min_gap_1)
+                {
+                    min_gap_1 = peek_rang_gap;
+                    min_gap1_num = i-1;
+                }
+            }
+
+            //find the second shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if(i!=min_gap1_num+1)
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_2)
+                    {
+                        min_gap_2 = peek_rang_gap;
+                        min_gap2_num = i-1;
+                    }
+                }
+            }
+
+            //find the third shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_3)
+                    {
+                        min_gap_3 = peek_rang_gap;
+                        min_gap3_num = i-1;
+                    }
+                }
+            }
+
+            //find the forth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_4)
+                    {
+                        min_gap_4 = peek_rang_gap;
+                        min_gap4_num = i-1;
+                    }
+                }
+            }
+
+
+            for(int i=0;i<peek_range_v.size();i++)
+            {
+                if((((i==min_gap1_num)&&(i+1==min_gap2_num))||((i==min_gap2_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap3_num))))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+2).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                    i++;
+                }
+                else if((i==min_gap1_num)||(i==min_gap2_num)||(i==min_gap3_num)||(i==min_gap4_num))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+1).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                }
+                else
+                {
+                    char_rang.push_back(peek_range_v.at(i));
+                }
+            }
+        }
+        break;
+    case 9:
+        {
+            int min_gap_1 = 200;
+            int min_gap_2 = 200;
+            int min_gap_3 = 200;
+            int min_gap_4 = 200;
+            int min_gap_5 = 200;
+            int min_gap1_num = 0;
+            int min_gap2_num = 0;
+            int min_gap3_num = 0;
+            int min_gap4_num = 0;
+            int min_gap5_num = 0;
+//            printf("peek_gap = %d\n",min_gap_1);
+            //find the shortest
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+//                printf("peek_gap = %d\n",peek_rang_gap);
+                if(peek_rang_gap<min_gap_1)
+                {
+                    min_gap_1 = peek_rang_gap;
+                    min_gap1_num = i-1;
+                }
+            }
+
+            //find the second shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if(i!=min_gap1_num+1)
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_2)
+                    {
+                        min_gap_2 = peek_rang_gap;
+                        min_gap2_num = i-1;
+                    }
+                }
+            }
+
+            //find the third shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_3)
+                    {
+                        min_gap_3 = peek_rang_gap;
+                        min_gap3_num = i-1;
+                    }
+                }
+            }
+
+            //find the forth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_4)
+                    {
+                        min_gap_4 = peek_rang_gap;
+                        min_gap4_num = i-1;
+                    }
+                }
+            }
+
+            //find the fifth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1)&&(i!=min_gap4_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_5)
+                    {
+                        min_gap_5 = peek_rang_gap;
+                        min_gap5_num = i-1;
+                    }
+                }
+            }
+
+            printf("min_gap_1 = %d, min_gap1_num = %d\n",min_gap_1,min_gap1_num);
+            printf("min_gap_2 = %d, min_gap2_num = %d\n",min_gap_2,min_gap2_num);
+            printf("min_gap_3 = %d, min_gap3_num = %d\n",min_gap_3,min_gap3_num);
+            printf("min_gap_4 = %d, min_gap4_num = %d\n",min_gap_4,min_gap4_num);
+            printf("min_gap_5 = %d, min_gap5_num = %d\n",min_gap_5,min_gap5_num);
+
+            for(int i=0;i<peek_range_v.size();i++)
+            {
+                if((((i==min_gap1_num)&&(i+1==min_gap2_num))||((i==min_gap2_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap4_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap4_num))))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+2).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                    i++;
+                }
+                else if((i==min_gap1_num)||(i==min_gap2_num)||(i==min_gap3_num)||(i==min_gap4_num)
+                      ||(i==min_gap5_num))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+1).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                }
+                else
+                {
+                    char_rang.push_back(peek_range_v.at(i));
+                }
+            }
+        }
+        break;
+    case 10:
+        {
+            int min_gap_1 = 200;
+            int min_gap_2 = 200;
+            int min_gap_3 = 200;
+            int min_gap_4 = 200;
+            int min_gap_5 = 200;
+            int min_gap_6 = 200;
+            int min_gap1_num = 0;
+            int min_gap2_num = 0;
+            int min_gap3_num = 0;
+            int min_gap4_num = 0;
+            int min_gap5_num = 0;
+            int min_gap6_num = 0;
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                if(peek_rang_gap<min_gap_1)
+                {
+                    min_gap_1 = peek_rang_gap;
+                    min_gap1_num = i-1;
+                }
+            }
+
+            //find the second shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if(i!=min_gap1_num+1)
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_2)
+                    {
+                        min_gap_2 = peek_rang_gap;
+                        min_gap2_num = i-1;
+                    }
+                }
+            }
+
+            //find the third shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_3)
+                    {
+                        min_gap_3 = peek_rang_gap;
+                        min_gap3_num = i-1;
+                    }
+                }
+            }
+
+            //find the forth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_4)
+                    {
+                        min_gap_4 = peek_rang_gap;
+                        min_gap4_num = i-1;
+                    }
+                }
+            }
+
+            //find the fifth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1)&&(i!=min_gap4_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_5)
+                    {
+                        min_gap_5 = peek_rang_gap;
+                        min_gap5_num = i-1;
+                    }
+                }
+            }
+
+            //find the sixth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1)
+                 &&(i!=min_gap4_num+1)&&(i!=min_gap5_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_6)
+                    {
+                        min_gap_6 = peek_rang_gap;
+                        min_gap6_num = i-1;
+                    }
+                }
+            }
+
+
+            for(int i=0;i<peek_range_v.size();i++)
+            {
+                if((((i==min_gap1_num)&&(i+1==min_gap2_num))||((i==min_gap2_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap4_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap4_num)))
+                 ||(((i==min_gap4_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap4_num)))
+                 ||(((i==min_gap5_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap5_num))))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+2).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                    i++;
+                }
+                else if((i==min_gap1_num)||(i==min_gap2_num)||(i==min_gap3_num)||(i==min_gap4_num)
+                      ||(i==min_gap5_num)||(i==min_gap6_num))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+1).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                }
+                else
+                {
+                    char_rang.push_back(peek_range_v.at(i));
+                }
+            }
+        }
+        break;
+    case 11:
+        {
+            int min_gap_1 = 200;
+            int min_gap_2 = 200;
+            int min_gap_3 = 200;
+            int min_gap_4 = 200;
+            int min_gap_5 = 200;
+            int min_gap_6 = 200;
+            int min_gap_7 = 200;
+            int min_gap1_num = 0;
+            int min_gap2_num = 0;
+            int min_gap3_num = 0;
+            int min_gap4_num = 0;
+            int min_gap5_num = 0;
+            int min_gap6_num = 0;
+            int min_gap7_num = 0;
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                if(peek_rang_gap<min_gap_1)
+                {
+                    min_gap_1 = peek_rang_gap;
+                    min_gap1_num = i-1;
+                }
+            }
+
+            //find the second shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if(i!=min_gap1_num+1)
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_2)
+                    {
+                        min_gap_2 = peek_rang_gap;
+                        min_gap2_num = i-1;
+                    }
+                }
+            }
+
+            //find the third shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_3)
+                    {
+                        min_gap_3 = peek_rang_gap;
+                        min_gap3_num = i-1;
+                    }
+                }
+            }
+
+            //find the forth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_4)
+                    {
+                        min_gap_4 = peek_rang_gap;
+                        min_gap4_num = i-1;
+                    }
+                }
+            }
+
+            //find the fifth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1)&&(i!=min_gap4_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_5)
+                    {
+                        min_gap_5 = peek_rang_gap;
+                        min_gap5_num = i-1;
+                    }
+                }
+            }
+
+            //find the sixth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1)
+                 &&(i!=min_gap4_num+1)&&(i!=min_gap5_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_6)
+                    {
+                        min_gap_6 = peek_rang_gap;
+                        min_gap6_num = i-1;
+                    }
+                }
+            }
+
+            //find the seventh shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1)
+                 &&(i!=min_gap4_num+1)&&(i!=min_gap5_num+1)&&(i!=min_gap6_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_7)
+                    {
+                        min_gap_7 = peek_rang_gap;
+                        min_gap7_num = i-1;
+                    }
+                }
+            }
+
+            for(int i=0;i<peek_range_v.size();i++)
+            {
+                if((((i==min_gap1_num)&&(i+1==min_gap2_num))||((i==min_gap2_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap4_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap4_num)))
+                 ||(((i==min_gap4_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap4_num)))
+                 ||(((i==min_gap4_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap4_num)))
+                 ||(((i==min_gap5_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap5_num)))
+                 ||(((i==min_gap5_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap5_num)))
+                 ||(((i==min_gap6_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap6_num))))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+2).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                    i++;
+                }
+                else if((i==min_gap1_num)||(i==min_gap2_num)||(i==min_gap3_num)||(i==min_gap4_num)
+                      ||(i==min_gap5_num)||(i==min_gap6_num)||(i==min_gap7_num))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+1).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                }
+                else
+                {
+                    char_rang.push_back(peek_range_v.at(i));
+                }
+            }
+        }
+        break;
+    case 12:
+        {
+            int min_gap_1 = 200;
+            int min_gap_2 = 200;
+            int min_gap_3 = 200;
+            int min_gap_4 = 200;
+            int min_gap_5 = 200;
+            int min_gap_6 = 200;
+            int min_gap_7 = 200;
+            int min_gap_8 = 200;
+            int min_gap1_num = 0;
+            int min_gap2_num = 0;
+            int min_gap3_num = 0;
+            int min_gap4_num = 0;
+            int min_gap5_num = 0;
+            int min_gap6_num = 0;
+            int min_gap7_num = 0;
+            int min_gap8_num = 0;
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                if(peek_rang_gap<min_gap_1)
+                {
+                    min_gap_1 = peek_rang_gap;
+                    min_gap1_num = i-1;
+                }
+            }
+
+            //find the second shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if(i!=min_gap1_num+1)
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_2)
+                    {
+                        min_gap_2 = peek_rang_gap;
+                        min_gap2_num = i-1;
+                    }
+                }
+            }
+
+            //find the third shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_3)
+                    {
+                        min_gap_3 = peek_rang_gap;
+                        min_gap3_num = i-1;
+                    }
+                }
+            }
+
+            //find the forth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_4)
+                    {
+                        min_gap_4 = peek_rang_gap;
+                        min_gap4_num = i-1;
+                    }
+                }
+            }
+
+            //find the fifth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1)&&(i!=min_gap4_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_5)
+                    {
+                        min_gap_5 = peek_rang_gap;
+                        min_gap5_num = i-1;
+                    }
+                }
+            }
+
+            //find the sixth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1)
+                 &&(i!=min_gap4_num+1)&&(i!=min_gap5_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_6)
+                    {
+                        min_gap_6 = peek_rang_gap;
+                        min_gap6_num = i-1;
+                    }
+                }
+            }
+
+            //find the seventh shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1)
+                 &&(i!=min_gap4_num+1)&&(i!=min_gap5_num+1)&&(i!=min_gap6_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_7)
+                    {
+                        min_gap_7 = peek_rang_gap;
+                        min_gap7_num = i-1;
+                    }
+                }
+            }
+
+            //find the eighth shorter
+            for(int i =1;i<peek_range_v.size();i++)
+            {
+                if((i!=min_gap1_num+1)&&(i!=min_gap2_num+1)&&(i!=min_gap3_num+1)
+                 &&(i!=min_gap4_num+1)&&(i!=min_gap5_num+1)&&(i!=min_gap6_num+1)&&(i!=min_gap7_num+1))
+                {
+                    int peek_rang_gap = peek_range_v.at(i).begin - peek_range_v.at(i-1).end;
+                    if(peek_rang_gap<min_gap_8)
+                    {
+                        min_gap_8 = peek_rang_gap;
+                        min_gap8_num = i-1;
+                    }
+                }
+            }
+
+            for(int i=0;i<peek_range_v.size();i++)
+            {
+                if((((i==min_gap1_num)&&(i+1==min_gap2_num))||((i==min_gap2_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap1_num)&&(i+1==min_gap8_num))||((i==min_gap8_num)&&(i+1==min_gap1_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap3_num))||((i==min_gap3_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap2_num)&&(i+1==min_gap8_num))||((i==min_gap8_num)&&(i+1==min_gap2_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap4_num))||((i==min_gap4_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap3_num)&&(i+1==min_gap8_num))||((i==min_gap8_num)&&(i+1==min_gap3_num)))
+                 ||(((i==min_gap4_num)&&(i+1==min_gap5_num))||((i==min_gap5_num)&&(i+1==min_gap4_num)))
+                 ||(((i==min_gap4_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap4_num)))
+                 ||(((i==min_gap4_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap4_num)))
+                 ||(((i==min_gap4_num)&&(i+1==min_gap8_num))||((i==min_gap8_num)&&(i+1==min_gap4_num)))
+                 ||(((i==min_gap5_num)&&(i+1==min_gap6_num))||((i==min_gap6_num)&&(i+1==min_gap5_num)))
+                 ||(((i==min_gap5_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap5_num)))
+                 ||(((i==min_gap5_num)&&(i+1==min_gap8_num))||((i==min_gap8_num)&&(i+1==min_gap5_num)))
+                 ||(((i==min_gap6_num)&&(i+1==min_gap7_num))||((i==min_gap7_num)&&(i+1==min_gap6_num)))
+                 ||(((i==min_gap6_num)&&(i+1==min_gap8_num))||((i==min_gap8_num)&&(i+1==min_gap6_num)))
+                 ||(((i==min_gap7_num)&&(i+1==min_gap8_num))||((i==min_gap8_num)&&(i+1==min_gap7_num))))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+2).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                    i++;
+                }
+                else if((i==min_gap1_num)||(i==min_gap2_num)||(i==min_gap3_num)||(i==min_gap4_num)
+                      ||(i==min_gap5_num)||(i==min_gap6_num)||(i==min_gap7_num)||(i==min_gap8_num))
+                {
+                    char_range_t connect_peek;
+                    connect_peek.begin = peek_range_v.at(i).begin;
+                    connect_peek.end = peek_range_v.at(i+1).end;
+                    char_rang.push_back(connect_peek);
+                    i++;
+                }
+                else
+                {
+                    char_rang.push_back(peek_range_v.at(i));
+                }
+            }
+        }
+        break;
+    default:
+        {
+            for(int i=0;i<peek_range_v.size();i++)
+            {
+                char_rang.push_back(peek_range_v.at(i));
+            }
+        }
+        break;
+    }
+}
 
 void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_char_vec)
 {
     srand((unsigned)time(NULL));
-
-    Mat spineGray_copy;
-    spineGray.copyTo(spineGray_copy);
 
     ////gauss smoothing
     int m_GaussianBlurSize = 5;
@@ -1195,7 +2125,8 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
     ////morphological open
     Mat element_src = getStructuringElement(MORPH_RECT, Size(2, 2));
     Mat open_src;
-    morphologyEx(thresh_src,open_src,MORPH_OPEN,element_src);
+//    morphologyEx(thresh_src,open_src,MORPH_OPEN,element_src);
+    open_src = thresh_src.clone();
 #ifdef DEBUG
     while(1)
     {
@@ -1298,7 +2229,7 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
 #endif
 
 
-    ////delete noise contous
+    //delete noise contous
     for(int i=0;i<open_src.rows;i++)
     {
         for(int j=0;j<open_src.cols;j++)
@@ -1323,17 +2254,18 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
       if(char(cvWaitKey(15))==27)break;
     }
 
-    cvDestroyWindow("open_sr");
-    cvDestroyWindow("sepertate_im_remove");
-    cvDestroyWindow("sepertate_im");
-    cvDestroyWindow("open_src_remove");
+//    cvDestroyWindow("open_sr");
+//    cvDestroyWindow("sepertate_im_remove");
+//    cvDestroyWindow("sepertate_im");
+//    cvDestroyWindow("open_src_remove");
 #endif
 
 
     ////get project
     //row segment
-    Mat charRow;
-    segmentRow(open_src,spineGray_copy,charRow,0.08);
+    Mat charRow,charRowTem;
+    segmentRow(open_src,charRowTem,0.12);
+    cv::resize(charRowTem,charRow,cv::Size(PIECEWIDTH,PIECEHEIGHT));
 #ifdef DEBUG
         while(1)
         {
@@ -1342,6 +2274,70 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
         }
 #endif
 
+
+    ////rotation estimate and rotation rectify
+    //建立储存边缘检测结果图像canImage
+    Mat canImage(cv::Size(charRow.cols,charRow.rows),IPL_DEPTH_8U,1);
+    //进行边缘检测
+    Canny(charRow,canImage,30,200,3);
+    //进行hough变换
+    vector<Vec2f> lines;
+    HoughLines(canImage, lines, 1, CV_PI / 180, 30, 0, 0);
+    //统计与竖直夹角<10度的直线个数以及其夹角和
+    int numLine=0;
+    float sumAng=0.0;
+    Mat charRowRGB(cv::Size(charRow.cols,charRow.rows),charRow.depth(),3);
+    cvtColor(charRow,charRowRGB,CV_GRAY2RGB);
+    for(int i=0;i<lines.size();i++)
+    {
+        float theta=lines[i][1];  //获取角度 为弧度制
+        float rho = lines[i][0];
+        if(theta>=0&&theta<5*CV_PI/180)
+        {
+            Point pt1, pt2;
+            //cout << theta << endl;
+            double a = cos(theta), b = sin(theta);
+            double x0 = a*rho, y0 = b*rho;
+            pt1.x = cvRound(x0 + 1000 * (-b));
+            pt1.y = cvRound(y0 + 1000 * (a));
+            pt2.x = cvRound(x0 - 1000 * (-b));
+            pt2.y = cvRound(y0 - 1000 * (a));
+            cv::line(charRowRGB, pt1, pt2, Scalar(55, 100, 195), 1, LINE_AA); //Scalar函数用于调节线段颜色
+
+            numLine++;
+            sumAng=sumAng+theta;
+        }
+    }
+    float avAng;
+    if(numLine!=0)
+    {
+        avAng=(sumAng/numLine)*180/CV_PI;
+    }
+    else
+        avAng = 0;
+
+
+    printf("avAng =%f\n",avAng );
+
+//    while(1)
+//    {
+//      imshow( "charRowRGB", charRowRGB );
+//      if(char(cvWaitKey(15))==27)break;
+//    }
+//    cvDestroyWindow("charRowRGB");
+
+
+    Mat rotImage,rotImageTem;
+    rotateImg(charRow, rotImageTem, avAng);
+    cv::resize(rotImageTem,rotImage,cv::Size(PIECEWIDTH,PIECEHEIGHT));
+    charRow= rotImage.clone();
+
+//    while(1)
+//    {
+//      imshow( "rotImage", rotImage );
+//      if(char(cvWaitKey(15))==27)break;
+//    }
+//    cvDestroyWindow("rotImage");
 
 
     //cols segment for main row
@@ -1353,127 +2349,125 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
     GetTextProjection(charRow,pos_v,V_PROJECT);
     draw_projection(pos_v,V_PROJECT);
     GetPeekRange(pos_v,peek_range_v,1,2);
-    for(int i =0;i<peek_range_v.size();i++)
-    {   int peek_rang = peek_range_v.at(i).end - peek_range_v.at(i).begin;
-        if(peek_rang>0.01*charRow.cols)
-        {
-            if(i<peek_range_v.size()-1)
-            {
-                int peek_rang_next = peek_range_v.at(i+1).end - peek_range_v.at(i+1).begin;
-                int peek_rang_gap = peek_range_v.at(i+1).begin - peek_range_v.at(i).end;
-                if((peek_rang_next>0.01*charRow.cols)&&(peek_rang_gap <0.015*charRow.cols))
-                {
-                    if(i<peek_range_v.size()-2)
-                    {
-                        int peek_rang_next_next = peek_range_v.at(i+2).end - peek_range_v.at(i+2).begin;
-                        int peek_rang_gap_next = peek_range_v.at(i+2).begin - peek_range_v.at(i+1).end;
-                        if((peek_rang_next_next>0.01*charRow.cols)&&(peek_rang_gap_next <0.015*charRow.cols))
-                        {
-                            char_range_t connect_peek;
-                            connect_peek.begin = peek_range_v.at(i).begin;
-                            connect_peek.end = peek_range_v.at(i+2).end;
-                            char_rang.push_back(connect_peek);
-                            i = i+2;
-                        }
-                        else
-                        {
-                            char_range_t connect_peek;
-                            connect_peek.begin = peek_range_v.at(i).begin;
-                            connect_peek.end = peek_range_v.at(i+1).end;
-                            char_rang.push_back(connect_peek);
-                            i++;
-                        }
-                    }
-                    else
-                    {
-                        char_range_t connect_peek;
-                        connect_peek.begin = peek_range_v.at(i).begin;
-                        connect_peek.end = peek_range_v.at(i+1).end;
-                        char_rang.push_back(connect_peek);
-                        i++;
-                    }
 
-                }
-                else
-                {
-                    char_rang.push_back(peek_range_v.at(i));
-                }
-            }
-            else
-            {
-                char_rang.push_back(peek_range_v.at(i));
-            }
+    //segment analyse
+    segmentAnalyse(peek_range_v,char_rang);
 
-        }
-    }
 
-//    vector<char_range_t>::iterator itc = char_rang.begin();
-//    vector<Rect> vecRect_temp;
-//    while (itc != char_rang.end())
-//    {
-//        Rect charRec((*itc).begin,0,(*itc).end-(*itc).begin,charRow.rows);
-//        vecRect_temp.push_back(charRec);
-//        ++itc;
+    //connect closer neighbour peek_range,version 1.0
+//    for(int i =0;i<peek_range_v.size();i++)
+//    {   int peek_rang = peek_range_v.at(i).end - peek_range_v.at(i).begin;
+//        if(peek_rang>0.01*charRow.cols)
+//        {
+//            if(i<peek_range_v.size()-1)
+//            {
+//                int peek_rang_next = peek_range_v.at(i+1).end - peek_range_v.at(i+1).begin;
+//                int peek_rang_gap = peek_range_v.at(i+1).begin - peek_range_v.at(i).end;
+//                if((peek_rang_next>0.01*charRow.cols)&&(peek_rang_gap <0.015*charRow.cols))
+//                {
+//                    if(i<peek_range_v.size()-2)
+//                    {
+//                        int peek_rang_next_next = peek_range_v.at(i+2).end - peek_range_v.at(i+2).begin;
+//                        int peek_rang_gap_next = peek_range_v.at(i+2).begin - peek_range_v.at(i+1).end;
+//                        if((peek_rang_next_next>0.01*charRow.cols)&&(peek_rang_gap_next <0.015*charRow.cols))
+//                        {
+//                            char_range_t connect_peek;
+//                            connect_peek.begin = peek_range_v.at(i).begin;
+//                            connect_peek.end = peek_range_v.at(i+2).end;
+//                            char_rang.push_back(connect_peek);
+//                            i = i+2;
+//                        }
+//                        else
+//                        {
+//                            char_range_t connect_peek;
+//                            connect_peek.begin = peek_range_v.at(i).begin;
+//                            connect_peek.end = peek_range_v.at(i+1).end;
+//                            char_rang.push_back(connect_peek);
+//                            i++;
+//                        }
+//                    }
+//                    else
+//                    {
+//                        char_range_t connect_peek;
+//                        connect_peek.begin = peek_range_v.at(i).begin;
+//                        connect_peek.end = peek_range_v.at(i+1).end;
+//                        char_rang.push_back(connect_peek);
+//                        i++;
+//                    }
+
+//                }
+//                else
+//                {
+//                    char_rang.push_back(peek_range_v.at(i));
+//                }
+//            }
+//            else
+//            {
+//                char_rang.push_back(peek_range_v.at(i));
+//            }
+
+//        }
 //    }
-    //modify for more than one char per chop
+
     vector<char_range_t>::iterator itc = char_rang.begin();
     vector<Rect> vecRect_temp;
-    while ((itc+1) != char_rang.end())
+    while (itc != char_rang.end())
     {
-        Rect charRec((*itc).begin,0,(*(itc+1)).end-(*itc).begin,charRow.rows);
+        Rect charRec((*itc).begin,0,(*itc).end-(*itc).begin,charRow.rows);
         vecRect_temp.push_back(charRec);
         ++itc;
     }
+
+
 
 
     ////seperate big char(connect char)
     vector<Rect> vecRect;
     for(int i = 0;i<vecRect_temp.size();i++)
     {
-//        if(vecRect_temp.at(i).width>=0.75*PIECEWIDTH)//4 char connect
-//        {
-//            int piece4 = vecRect_temp.at(i).width/4;
-//            int piece_h = vecRect_temp.at(i).height;
-//            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece4,piece_h);
-//            Rect charRec2(vecRect_temp.at(i).x+1*piece4,vecRect_temp.at(i).y,piece4,piece_h);
-//            Rect charRec3(vecRect_temp.at(i).x+2*piece4,vecRect_temp.at(i).y,piece4,piece_h);
-//            Rect charRec4(vecRect_temp.at(i).x+3*piece4,vecRect_temp.at(i).y,piece4,piece_h);
-//            vecRect.push_back(charRec1);
-//            vecRect.push_back(charRec2);
-//            vecRect.push_back(charRec3);
-//            vecRect.push_back(charRec4);
-//        }
-//        else if(vecRect_temp.at(i).width>=0.55*PIECEWIDTH)//3 char connect
-//        {
-//            int piece3 = vecRect_temp.at(i).width/3;
-//            int piece_h = vecRect_temp.at(i).height;
-//            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece3,piece_h);
-//            Rect charRec2(vecRect_temp.at(i).x+1*piece3,vecRect_temp.at(i).y,piece3,piece_h);
-//            Rect charRec3(vecRect_temp.at(i).x+2*piece3,vecRect_temp.at(i).y,piece3,piece_h);
-//            vecRect.push_back(charRec1);
-//            vecRect.push_back(charRec2);
-//            vecRect.push_back(charRec3);
-//        }
-//        else if(vecRect_temp.at(i).width>=0.35*PIECEWIDTH)//2 char connect
-//        {
-//            int piece2 = vecRect_temp.at(i).width/2;
-//            int piece_h = vecRect_temp.at(i).height;
-//            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece2,piece_h);
-//            Rect charRec2(vecRect_temp.at(i).x+1*piece2,vecRect_temp.at(i).y,piece2,piece_h);
-//            vecRect.push_back(charRec1);
-//            vecRect.push_back(charRec2);
-//        }
-//        else
-//        {
-//            vecRect.push_back(vecRect_temp.at(i));
-//        }
-        vecRect.push_back(vecRect_temp.at(i));//modify for more than one char per chop
+        if(vecRect_temp.at(i).width>=0.75*PIECEWIDTH)//4 char connect
+        {
+            int piece4 = vecRect_temp.at(i).width/4;
+            int piece_h = vecRect_temp.at(i).height;
+            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece4,piece_h);
+            Rect charRec2(vecRect_temp.at(i).x+1*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+            Rect charRec3(vecRect_temp.at(i).x+2*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+            Rect charRec4(vecRect_temp.at(i).x+3*piece4,vecRect_temp.at(i).y,piece4,piece_h);
+            vecRect.push_back(charRec1);
+            vecRect.push_back(charRec2);
+            vecRect.push_back(charRec3);
+            vecRect.push_back(charRec4);
+        }
+        else if(vecRect_temp.at(i).width>=0.55*PIECEWIDTH)//3 char connect
+        {
+            int piece3 = vecRect_temp.at(i).width/3;
+            int piece_h = vecRect_temp.at(i).height;
+            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece3,piece_h);
+            Rect charRec2(vecRect_temp.at(i).x+1*piece3,vecRect_temp.at(i).y,piece3,piece_h);
+            Rect charRec3(vecRect_temp.at(i).x+2*piece3,vecRect_temp.at(i).y,piece3,piece_h);
+            vecRect.push_back(charRec1);
+            vecRect.push_back(charRec2);
+            vecRect.push_back(charRec3);
+        }
+        else if(vecRect_temp.at(i).width>=0.35*PIECEWIDTH)//2 char connect
+        {
+            int piece2 = vecRect_temp.at(i).width/2;
+            int piece_h = vecRect_temp.at(i).height;
+            Rect charRec1(vecRect_temp.at(i).x,vecRect_temp.at(i).y,piece2,piece_h);
+            Rect charRec2(vecRect_temp.at(i).x+1*piece2,vecRect_temp.at(i).y,piece2,piece_h);
+            vecRect.push_back(charRec1);
+            vecRect.push_back(charRec2);
+        }
+        else
+        {
+            vecRect.push_back(vecRect_temp.at(i));
+        }
     }
 
     ////save single char image after segment
     for(int char_num=0;char_num<vecRect.size();char_num++)
     {
-         Mat single_char_=charRow(vecRect.at(char_num));
+         Mat single_char_=charRow(vecRect.at(char_num));//modify on 0309
 //         Mat single_char_seg;
 //         segmentRow(single_char_,single_char_seg,1.2);
 
@@ -1490,8 +2484,8 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
 //             Mat char_sob_ele = getStructuringElement(MORPH_RECT, Size(2, 2));
 //             Mat char_sob;
 //             morphologyEx(single_char,char_sob,MORPH_OPEN,element_sob);
-//             single_char = preprocessChar(single_char_);//modify on 20180309
-             single_char_vec.push_back(single_char_);
+             single_char = preprocessChar(single_char_);//modify on 0309
+             single_char_vec.push_back(single_char);
          }
 #ifdef DEBUG
         while(1)
@@ -1502,11 +2496,11 @@ void TextDetector::segmentSrcProject(cv::Mat &spineGray, vector<Mat> &single_cha
 #endif
     }
 
-#ifdef DEBUG
+//#ifdef DEBUG
     cvDestroyWindow("single_char");
     cvDestroyWindow("charRow");
 
-#endif
+//#endif
 }
 
 void TextDetector::imgQuantize(cv::Mat &src, cv::Mat &dst, double level){

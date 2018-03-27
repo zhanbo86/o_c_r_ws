@@ -3,6 +3,7 @@
 using namespace cv;
 using namespace std;
 using namespace easyocr;
+#include <stdio.h>
 
 
 
@@ -86,6 +87,7 @@ int CharRecog::cdata(std::vector<cv::Mat> &matVec)
     fprintf(stdout, ">> img count: %d \n", int(char_size));
 
     for (auto file : chars_files) {
+      std::cout<<"image name = "<<file<<std::endl;
       auto img = cv::imread(file, 0);  // a grayscale image
       matVec.push_back(img);
     }
@@ -109,6 +111,7 @@ int CharRecog::charRecognise()
     std::cout << "preproceed imgs." << std::endl;
     for(int im_num=0;im_num<matVec.size();im_num++)
     {
+        printf("image num %d\n",im_num);
         ////reset for every image
         num_p_1 = 0;
         x_int_1 = 0;
@@ -121,6 +124,7 @@ int CharRecog::charRecognise()
         Size low_res = cv::Size((int)(im.size().width/2),(int)(im.size().height/2));
 #else
         Size low_res = cv::Size(PIECEWIDTH,PIECEHEIGHT);
+//        Size low_res = cv::Size(im.cols,im.rows);
 #endif
         Mat img_100(low_res,im.depth(),1);
         if (im.empty())
@@ -203,6 +207,7 @@ int CharRecog::charRecognise()
 
 
 
+
         ////pre-process image
         clock_t a=clock();
         TextDetector detector;
@@ -224,10 +229,21 @@ int CharRecog::charRecognise()
      #ifdef DEBUG
          std::cout<<"single_char_vec.size = "<<single_char_vec.size()<<std::endl;
      #endif
-         for(int i=0;i<single_char_vec.size();i++)
+         int char_num_rem = 0;
+         for(;char_num_rem<single_char_vec.size();char_num_rem++)
          {
             Mat single_char;
-            single_char = single_char_vec.at(i);
+            single_char = single_char_vec.at(char_num_rem);
+
+
+
+             const char* single_char_folder_ = "../../../src/easyocr/rec_char_img";
+             std::stringstream ss(std::stringstream::in | std::stringstream::out);
+//             ss << single_char_folder_ << "/" << im_num << "_src" << char_num<<"_"<<rand()<< ".jpg";
+             ss << single_char_folder_ << "/" << char_num_rem<<".jpg";
+             imwrite(ss.str(),single_char);
+
+
      #ifdef DEBUG
              while(1)
              {
@@ -262,8 +278,21 @@ int CharRecog::charRecognise()
            imshow( "pick_ocr", ocr_piece );
            if(char(cvWaitKey(15))==27)break;
          }
-         cvDestroyWindow("pick_ocr");
 
+         std::cout<<"char_num = "<<char_num_rem<<std::endl;
+//         for(int i=0;i<=char_num_rem;i++)
+//         {
+//             const char* single_char_folder_ = "../../../src/easyocr/rec_char_img";
+//             std::stringstream ss(std::stringstream::in | std::stringstream::out);
+//             ss << single_char_folder_ << "/" << i<<".jpg";
+//             char* file_char;
+//             ss>>file_char;
+//             std::cout<<"i = "<<i<<std::endl;
+//             remove(file_char);
+
+////             DeleteFile((LPCTSTR)ss.c_str());
+//         }
+         cvDestroyWindow("pick_ocr");
          std::cout<<"***********************************************************"<<std::endl;
 
     }

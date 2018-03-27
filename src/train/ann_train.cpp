@@ -39,7 +39,7 @@ void AnnTrain::train() {
   int first_hidden_neurons = int(std::sqrt((m + 2) * N) + 2 * std::sqrt(N / (m + 2)));
   int second_hidden_neurons = int(m * std::sqrt(N / (m + 2)));
 
-  bool useTLFN = false;
+  bool useTLFN = true;
   if (!useTLFN) {
     layers.create(1, 3, CV_32SC1);
     layers.at<int>(0) = input_number;
@@ -75,7 +75,8 @@ void AnnTrain::train() {
   }
 
   //using raw data or raw + synthic data.
-  auto traindata = sdata(250);
+//  auto traindata = sdata(250);
+  auto traindata = sdata(5000);
 
   std::cout << "Training ANN model, please wait..." << std::endl;
   long start = utils::getTimestamp();
@@ -182,17 +183,34 @@ void AnnTrain::test() {
 cv::Mat getSyntheticImage(const Mat& image) {
   int rand_type = rand();
   Mat result = image.clone();
+  std::cout<<"enter into synthetic!"<<std::endl;
 
   if (rand_type % 2 == 0) {
-    int ran_x = rand() % 5 - 2;
-    int ran_y = rand() % 5 - 2;
+//    int ran_x = rand() % 5 - 2;
+//    int ran_y = rand() % 5 - 2;
+      int ran_x = int(float(rand() % 100)/100.0*result.cols*0.08);
+      int ran_y = int(float(rand() % 100)/100.0*result.rows*0.08);
+      printf("ran_x = %d,ran_y = %d\n",ran_x,ran_y);
 
-    result = translateImg(result, ran_x, ran_y);
+      if(ran_x>0) ran_x--;
+      else if(ran_y>0)
+      {
+          ran_y--;
+      }
+
+
+      Mat result_temp = result(Rect(ran_x,ran_y,result.cols*0.92+1,result.rows*0.92+1));
+      std::cout<<"chop.rows = "<<result.rows*0.92<<",cols = "<<result.cols*0.92<<std::endl;
+      result = result_temp.clone();
+//    result = translateImg(result, ran_x, ran_y);
   }
   else if (rand_type % 2 != 0) {
-    float angle = float(rand() % 15 - 7);
+//    float angle = float(rand() % 15 - 7);
+      float angle = (float(rand() % 100 - 50)/50.0*5.0);
+      printf("angle = %f\n",angle);
+      Mat result_temp = result(Rect(result.cols*0.07,result.rows*0.07,result.cols*0.9,result.rows*0.9));
 
-    result = rotateImg(result, angle);
+    result = rotateImg(result_temp, angle);
   }
   
   return result;
@@ -206,10 +224,14 @@ cv::Ptr<cv::ml::TrainData> AnnTrain::sdata(size_t number_for_count) {
 
   int classNumber = 0;
   classNumber = kCharactersNumber;
+//  classNumber = 37;//modify 0309
+//    classNumber = 51;//modify 0309
+//  classNumber = 11;//modify 0309
+//    classNumber = 42;//modify 0309
 
   srand((unsigned)time(0));
   for (int i = 0; i < classNumber; ++i) {
-   
+    printf("i = %d\n",i);
     auto char_key = kChars[i];
     char sub_folder[512] = { 0 };
 
@@ -232,8 +254,37 @@ cv::Ptr<cv::ml::TrainData> AnnTrain::sdata(size_t number_for_count) {
       int rand_range = char_size + t;
       int ran_num = rand() % rand_range;
       auto img = matVec.at(ran_num);
-      auto simg = getSyntheticImage(img);
-      matVec.push_back(simg);
+      std::cout<<"img rows = "<<img.rows<<",cols = "<<img.cols<<std::endl;
+      //modify on 0309
+      Mat background_img(1.2*img.rows,1.2*img.cols, CV_8UC1,Scalar::all(0));
+      std::cout<<"background img.rows = "<<background_img.rows<<",cols = "<<background_img.cols<<std::endl;
+      cv::Mat imageROI;
+      imageROI= background_img(cv::Rect(0.1*img.cols-1,0.1*img.rows-1,img.cols,img.rows));
+      std::cout<<"ROI.rows = "<<imageROI.rows<<",cols = "<<imageROI.cols<<std::endl;
+      cv::addWeighted(imageROI,1.0,img,1.0,0.0,imageROI);
+//      while(1)
+//      {
+//        imshow( "imageROI", background_img );
+//        if(char(cvWaitKey(15))==27)break;
+//      }
+//      cvDestroyWindow("imageROI");
+
+
+      auto simg = getSyntheticImage(background_img);
+//      simg.resize(img.rows,img.cols);
+      Mat simg_resize;
+      resize(simg,simg_resize,Size(img.cols,img.rows));
+//      std::cout<<"img 2 rows = "<<img.rows<<",cols = "<<img.cols<<std::endl;
+//      std::cout<<"simg rows = "<<simg.rows<<",cols = "<<simg.cols<<std::endl;
+//      std::cout<<"simg resize rows = "<<simg_resize.rows<<",cols = "<<simg_resize.cols<<std::endl;
+//      while(1)
+//      {
+//        imshow( "simg", simg );
+//        if(char(cvWaitKey(15))==27)break;
+//      }
+//      cvDestroyWindow("simg");
+//      auto simg = getSyntheticImage(img);
+      matVec.push_back(simg_resize);
       if (1) {
         std::stringstream ss(std::stringstream::in | std::stringstream::out);
         ss << sub_folder << "/" << i << "_" << t << "_" << ran_num << ".jpg";
